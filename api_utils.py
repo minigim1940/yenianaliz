@@ -965,101 +965,110 @@ def get_fixtures_by_date(api_key: str, base_url: str, selected_league_ids: List[
 
 def get_team_id(api_key: str, base_url: str, team_input: str, season: Optional[int] = None) -> Optional[Dict[str, Any]]:
     """
-    Universal team search with comprehensive fallback mechanisms
+    Simplified but robust team search function
     """
-    # Initialize API if not already done
-    from football_api_v3 import initialize_api, APIStatus
-    
     try:
-        api = initialize_api(api_key)
+        # Direct API call using make_api_request for better control
+        if STREAMLIT_AVAILABLE:
+            st.sidebar.info(f"🔍 Searching for: {team_input}")
         
-        # Turkish team shortcuts for quick mapping
-        turkish_teams = {
-            'galatasaray': 644, 'gala': 644, 'gs': 644, 'cimbom': 644,
+        # Strategy 1: Quick mapping for known teams
+        team_mappings = {
+            # Turkish teams
+            'galatasaray': 644, 'gala': 644, 'gs': 644,
             'fenerbahce': 645, 'fenerbahçe': 645, 'fener': 645, 'fb': 645,
-            'besiktas': 646, 'beşiktaş': 646, 'bjk': 646, 'kartal': 646,
-            'trabzonspor': 643, 'trabzon': 643, 'ts': 643,
-            'basaksehir': 3569, 'başakşehir': 3569
+            'besiktas': 646, 'beşiktaş': 646, 'bjk': 646,
+            'trabzonspor': 643, 'trabzon': 643,
+            # Major European teams
+            'juventus': 496, 'juve': 496,
+            'barcelona': 529, 'barca': 529,
+            'real madrid': 541, 'madrid': 541,
+            'manchester united': 33, 'man united': 33,
+            'liverpool': 40,
+            'arsenal': 42,
+            'chelsea': 49,
+            'bayern munich': 157, 'bayern': 157,
+            'psg': 85, 'paris': 85,
+            'ac milan': 489, 'milan': 489,
+            'inter': 505, 'inter milan': 505
         }
         
-        # Strategy 1: Direct ID lookup if numeric
-        if team_input.isdigit():
-            result = api.get_team_by_id(int(team_input))
-            if result.status.value == "success" and result.data:
-                team_data = result.data[0] if isinstance(result.data, list) else result.data
-                if team_data and 'team' in team_data:
-                    team_info = team_data['team']
-                elif team_data:
-                    team_info = team_data
-                else:
-                    team_info = None
-                    
-                if team_info:
-                    return format_team_response(team_info)
-        
-        # Strategy 2: Turkish team shortcut
         team_lower = team_input.strip().lower()
-        if team_lower in turkish_teams:
-            result = api.get_team_by_id(turkish_teams[team_lower])
-            if result.status.value == "success" and result.data:
-                team_data = result.data[0] if isinstance(result.data, list) else result.data
-                team_info = team_data.get('team', team_data) if team_data else None
-                if team_info:
-                    return format_team_response(team_info)
         
-        # Strategy 3: Search without season (most flexible)
+        # Direct ID if found in mappings
+        if team_lower in team_mappings:
+            team_id = team_mappings[team_lower]
+            response, error = make_api_request(api_key, base_url, "teams", {'id': team_id}, skip_limit=True)
+            if response and response.get('response'):
+                teams = response['response']
+                if teams and len(teams) > 0:
+                    team_info = teams[0]['team'] if 'team' in teams[0] else teams[0]
+                    if STREAMLIT_AVAILABLE:
+                        st.sidebar.success(f"✅ Found: {team_info['name']}")
+                    return format_team_data(team_info)
+        
+        # Strategy 2: Search by name with detailed debug
+        search_params = {'search': team_input}
+        
         if STREAMLIT_AVAILABLE:
-            st.sidebar.info(f"🔍 Aranıyor: {team_input}")
+            st.sidebar.info(f"📡 Calling API: teams endpoint with search='{team_input}'")
         
-        result = api.search_teams(team_input)
+        response, error = make_api_request(api_key, base_url, "teams", search_params, skip_limit=True)
         
+        # Debug API response
         if STREAMLIT_AVAILABLE:
-            st.sidebar.info(f"📊 API Status: {result.status.value}")
-            if result.data:
-                st.sidebar.info(f"📋 Bulunan sonuç sayısı: {len(result.data)}")
+            if error:
+                st.sidebar.error(f"❌ API Error: {error}")
+            else:
+                st.sidebar.success("✅ API call successful")
+                if response:
+                    st.sidebar.info(f"📊 Response keys: {list(response.keys()) if isinstance(response, dict) else 'Not a dict'}")
+                    if 'response' in response:
+                        st.sidebar.info(f"🔢 Teams found: {len(response['response']) if response['response'] else 0}")
         
-        if result.status.value == "success" and result.data and len(result.data) > 0:
-            return process_team_search_results(result.data)
-        elif result.status.value == "error":
+        if error:
+            return None
+        
+        if not response or not response.get('response'):
             if STREAMLIT_AVAILABLE:
-                st.sidebar.error(f"❌ API Hatası: {result.error}")
-        elif result.status.value == "rate_limit":
+                st.sidebar.warning(f"⚠️ No 'response' field in API response")
+            return None
+        
+        teams = response['response']
+        if not teams or len(teams) == 0:
             if STREAMLIT_AVAILABLE:
-                st.sidebar.error("⚠️ API rate limit aşıldı")
+                st.sidebar.warning(f"⚠️ Empty teams array for '{team_input}'")
+            return None
         
-        # Strategy 4: Search with current season if provided
-        if season:
-            result = api.search_teams(team_input, season=season)
-            if result.status.value == "success" and result.data and len(result.data) > 0:
-                return process_team_search_results(result.data)
-        
-        # Strategy 5: Clean search (remove special characters)
-        clean_input = ''.join(c for c in team_input if c.isalnum() or c.isspace()).strip()
-        if clean_input != team_input and clean_input:
-            result = api.search_teams(clean_input)
-            if result.status.value == "success" and result.data and len(result.data) > 0:
-                return process_team_search_results(result.data)
-        
-        # Strategy 6: Last resort - search major leagues
-        major_leagues = [39, 140, 78, 135, 61]  # Premier, La Liga, Bundesliga, Serie A, Ligue 1
-        for league_id in major_leagues:
-            try:
-                result = api.search_teams(team_input, league_id=league_id)
-                if result.status.value == "success" and result.data and len(result.data) > 0:
-                    return process_team_search_results(result.data)
-            except:
-                continue
-        
-        # No results found - detailed debug info
+        # Debug first team structure
         if STREAMLIT_AVAILABLE:
-            st.sidebar.error(f"❌ '{team_input}' takımı hiçbir stratejide bulunamadı.")
-            st.sidebar.info("🔍 Denenen stratejiler: ID lookup, Turkish shortcuts, global search, season search, clean search, major leagues")
-        return None
-
+            first_team = teams[0]
+            st.sidebar.info(f"🏗️ First team structure: {list(first_team.keys()) if isinstance(first_team, dict) else 'Not a dict'}")
+        
+        # Select best match (first result)
+        team_data = teams[0]
+        team_info = team_data['team'] if 'team' in team_data else team_data
+        
+        if STREAMLIT_AVAILABLE:
+            st.sidebar.success(f"✅ Found: {team_info.get('name', 'Unknown')} (ID: {team_info.get('id', 'Unknown')})")
+        
+        return format_team_data(team_info)
+        
     except Exception as e:
         if STREAMLIT_AVAILABLE:
-            st.sidebar.error(f"❌ Takım arama hatası: {str(e)}")
+            st.sidebar.error(f"❌ Search error: {str(e)}")
         return None
+
+def format_team_data(team_info: Dict[str, Any]) -> Dict[str, Any]:
+    """Format team data into consistent structure"""
+    return {
+        'id': team_info.get('id'),
+        'name': team_info.get('name'),
+        'logo': team_info.get('logo'),
+        'country': team_info.get('country'),
+        'founded': team_info.get('founded'),
+        'venue_name': team_info.get('venue', {}).get('name') if team_info.get('venue') else None
+    }
 
 def format_team_response(team_info: Dict[str, Any]) -> Dict[str, Any]:
     """Format team info into standard response"""
