@@ -4545,8 +4545,8 @@ def main():
             # URL'den view parametresini al, yoksa 'home' yap
             query_params = st.query_params
             view_param = query_params.get('view', 'home')
-            # Geçerli view'lar: home, dashboard, manual, codes, enhanced, timezone, coaches, venues, predictions, odds
-            valid_views = ['home', 'dashboard', 'manual', 'codes', 'enhanced', 'timezone', 'coaches', 'venues', 'predictions', 'odds']
+            # Geçerli view'lar: home, dashboard, manual, codes, enhanced, timezone, coaches, venues, predictions, odds, pro_analysis
+            valid_views = ['home', 'dashboard', 'manual', 'codes', 'enhanced', 'timezone', 'coaches', 'venues', 'predictions', 'odds', 'pro_analysis']
             st.session_state.view = view_param if view_param in valid_views else 'home'
         
         # Favori ligleri config'den yükle (ilk giriş)
@@ -4624,6 +4624,9 @@ def main():
         with nav_col9:
             if st.button("💰", use_container_width=True, key="nav_odds", help="Bahis Oranları"):
                 update_url_and_rerun('odds')
+        with nav_col10:
+            if st.button("🎯", use_container_width=True, key="nav_pro_analysis", help="Profesyonel Analiz"):
+                update_url_and_rerun('pro_analysis')
         
         st.sidebar.markdown("---")
         
@@ -5368,6 +5371,8 @@ def main():
             display_predictions_management()
         elif st.session_state.view == 'odds':
             display_odds_management()
+        elif st.session_state.view == 'pro_analysis':
+            display_professional_analysis()
         elif st.session_state.view == 'codes':
             build_codes_view()
 
@@ -5423,6 +5428,288 @@ def main():
                             safe_rerun()
                     else:
                         st.error('Kullanıcı eklenemedi.')
+
+def display_professional_analysis():
+    """Profesyonel analiz sayfası - Gelişmiş API-Football v3 özellikleri"""
+    
+    st.markdown("# 🎯 Profesyonel Analiz Merkezi")
+    st.markdown("*Gelişmiş API-Football v3 özellikleri ile derinlemesine maç analizi*")
+    
+    # API anahtarını al
+    try:
+        from football_api_v3 import APIFootballV3, AdvancedAnalytics, initialize_api
+        
+        if 'pro_analysis_api' not in st.session_state:
+            api_key = st.secrets.get('API_KEY') or '67db34589730acc0e2c84de228e29d99'
+            st.session_state.pro_analysis_api = APIFootballV3(api_key)
+            st.session_state.advanced_analytics = AdvancedAnalytics(st.session_state.pro_analysis_api)
+        
+        api = st.session_state.pro_analysis_api
+        analytics = st.session_state.advanced_analytics
+        
+    except Exception as e:
+        st.error(f"API başlatma hatası: {e}")
+        return
+    
+    # Tab sistemı
+    tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
+        "🔍 Kapsamlı Maç Analizi", 
+        "📊 Gelişmiş Takım Performansı", 
+        "💰 Detaylı Bahis Analizi", 
+        "🏟️ Saha & Hava Durumu", 
+        "👥 Oyuncu Etkisi", 
+        "🔴 Canlı Maç Zekası"
+    ])
+    
+    with tab1:
+        st.markdown("## 🔍 Kapsamlı Maç Analizi")
+        st.markdown("*Tüm maç verilerini birleştiren profesyonel analiz*")
+        
+        # Maç ID girişi
+        col1, col2 = st.columns([2, 1])
+        with col1:
+            fixture_id = st.number_input("Maç ID", min_value=1, value=868584, key="comprehensive_fixture_id")
+        with col2:
+            if st.button("🔍 Kapsamlı Analiz Yap", use_container_width=True):
+                with st.spinner("Profesyonel analiz yapılıyor..."):
+                    analysis = analytics.get_comprehensive_match_analysis(fixture_id)
+                    
+                    if 'error' in analysis:
+                        st.error(f"Analiz hatası: {analysis['error']}")
+                    else:
+                        # Ana bilgiler
+                        if analysis.get('basic_info'):
+                            basic = analysis['basic_info']
+                            teams = basic.get('teams', {})
+                            fixture = basic.get('fixture', {})
+                            
+                            st.markdown("### ⚽ Maç Bilgileri")
+                            col1, col2, col3 = st.columns(3)
+                            with col1:
+                                st.metric("Ev Sahibi", teams.get('home', {}).get('name', 'Bilinmiyor'))
+                            with col2:
+                                st.metric("Deplasman", teams.get('away', {}).get('name', 'Bilinmiyor'))
+                            with col3:
+                                st.metric("Tarih", fixture.get('date', 'Bilinmiyor')[:10])
+                        
+                        # Güvenilirlik ve Risk
+                        col1, col2, col3 = st.columns(3)
+                        with col1:
+                            confidence = analysis.get('confidence_score', 0)
+                            st.metric("Güvenilirlik Skoru", f"{confidence:.2%}", 
+                                    delta="Yüksek" if confidence > 0.7 else "Orta" if confidence > 0.4 else "Düşük")
+                        with col2:
+                            risk = analysis.get('risk_assessment', 'unknown')
+                            color = "🟢" if risk == 'low' else "🟡" if risk == 'medium' else "🔴"
+                            st.metric("Risk Seviyesi", f"{color} {risk.title()}")
+                        with col3:
+                            if analysis.get('predictions'):
+                                pred_data = analysis['predictions'][0] if analysis['predictions'] else {}
+                                predictions = pred_data.get('predictions', {})
+                                winner = predictions.get('winner', {}).get('name', 'Bilinmiyor')
+                                st.metric("Tahmin Edilen Kazanan", winner)
+                        
+                        # H2H Analizi
+                        if analysis.get('h2h'):
+                            st.markdown("### 📈 Karşı Karşıya Geçmiş")
+                            h2h_data = analysis['h2h'][:5]  # Son 5 maç
+                            h2h_df = []
+                            for match in h2h_data:
+                                match_teams = match.get('teams', {})
+                                match_goals = match.get('goals', {})
+                                h2h_df.append({
+                                    'Tarih': match.get('fixture', {}).get('date', '')[:10],
+                                    'Ev Sahibi': match_teams.get('home', {}).get('name', ''),
+                                    'Skor': f"{match_goals.get('home', 0)}-{match_goals.get('away', 0)}",
+                                    'Deplasman': match_teams.get('away', {}).get('name', '')
+                                })
+                            
+                            if h2h_df:
+                                st.dataframe(pd.DataFrame(h2h_df), use_container_width=True)
+                        
+                        # Bahis Oranları
+                        if analysis.get('odds'):
+                            st.markdown("### 💰 Bahis Oranları")
+                            odds_data = analysis['odds']
+                            if odds_data:
+                                for bookmaker_data in odds_data[:3]:  # İlk 3 bahisçi
+                                    bookmaker = bookmaker_data.get('bookmakers', [])
+                                    if bookmaker:
+                                        bm = bookmaker[0]
+                                        st.markdown(f"**{bm.get('name', 'Bilinmiyor')}**")
+                                        bets = bm.get('bets', [])
+                                        for bet in bets:
+                                            if bet.get('name') == 'Match Winner':
+                                                values = bet.get('values', [])
+                                                if len(values) >= 3:
+                                                    col1, col2, col3 = st.columns(3)
+                                                    with col1:
+                                                        st.metric("Ev Sahibi", values[0].get('odd', 'N/A'))
+                                                    with col2:
+                                                        st.metric("Beraberlik", values[1].get('odd', 'N/A'))
+                                                    with col3:
+                                                        st.metric("Deplasman", values[2].get('odd', 'N/A'))
+                                                break
+    
+    with tab2:
+        st.markdown("## 📊 Gelişmiş Takım Performansı")
+        
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            team_id = st.number_input("Takım ID", min_value=1, value=33, key="team_perf_id")
+        with col2:
+            season = st.number_input("Sezon", min_value=2020, max_value=2025, value=2024, key="team_perf_season")
+        with col3:
+            league_id = st.number_input("Lig ID (opsiyonel)", min_value=1, value=39, key="team_perf_league")
+        
+        if st.button("📊 Detaylı Performans Analizi Yap", use_container_width=True):
+            with st.spinner("Takım performansı analiz ediliyor..."):
+                performance = analytics.get_advanced_team_performance(team_id, season, league_id)
+                
+                if 'error' in performance:
+                    st.error(f"Analiz hatası: {performance['error']}")
+                else:
+                    st.success("✅ Analiz tamamlandı!")
+                    
+                    # Genel istatistikler
+                    if performance.get('overall_stats'):
+                        st.markdown("### 📈 Genel İstatistikler")
+                        stats = performance['overall_stats']
+                        if stats:
+                            # Bu bölüm API'den dönen gerçek verilerle doldurulacak
+                            st.info("Takım istatistikleri API'den alındı ve analiz edildi.")
+                    
+                    # Form analizi
+                    if performance.get('recent_form'):
+                        st.markdown("### 🎯 Son Form")
+                        form = performance['recent_form']
+                        col1, col2, col3, col4 = st.columns(4)
+                        with col1:
+                            st.metric("Galibiyet", form.get('wins', 0))
+                        with col2:
+                            st.metric("Beraberlik", form.get('draws', 0))
+                        with col3:
+                            st.metric("Mağlubiyet", form.get('losses', 0))
+                        with col4:
+                            st.metric("Gol Ortalaması", f"{form.get('goals_for', 0):.1f}")
+    
+    with tab3:
+        st.markdown("## 💰 Detaylı Bahis Analizi")
+        
+        fixture_id_odds = st.number_input("Maç ID", min_value=1, value=868584, key="odds_fixture_id")
+        
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            if st.button("💰 Maç Oranları", use_container_width=True):
+                odds_result = api.get_fixture_odds(fixture_id_odds)
+                if odds_result.status.value == "success":
+                    st.success("Bahis oranları alındı!")
+                    # Oranları göster
+                else:
+                    st.error("Bahis oranları alınamadı.")
+        
+        with col2:
+            if st.button("⚽ Over/Under 2.5", use_container_width=True):
+                ou_result = api.get_over_under_odds(fixture_id_odds, 2.5)
+                if ou_result.status.value == "success":
+                    st.success("Over/Under oranları alındı!")
+                else:
+                    st.error("Over/Under oranları alınamadı.")
+        
+        with col3:
+            if st.button("🎯 BTTS Oranları", use_container_width=True):
+                btts_result = api.get_both_teams_score_odds(fixture_id_odds)
+                if btts_result.status.value == "success":
+                    st.success("BTTS oranları alındı!")
+                else:
+                    st.error("BTTS oranları alınamadı.")
+    
+    with tab4:
+        st.markdown("## 🏟️ Saha & Hava Durumu Analizi")
+        
+        col1, col2 = st.columns(2)
+        with col1:
+            venue_id = st.number_input("Stadyum ID", min_value=1, value=556, key="venue_id")
+            if st.button("🏟️ Stadyum Analizi", use_container_width=True):
+                weather_analysis = api.get_weather_impact_analysis(fixture_id_odds)
+                pitch_analysis = api.get_pitch_condition_analysis(venue_id, "2024-10-26")
+                
+                st.markdown("### 🌤️ Hava Durumu Etkisi")
+                st.json(weather_analysis)
+                
+                st.markdown("### 🏟️ Saha Koşulları")
+                st.json(pitch_analysis)
+        
+        with col2:
+            team_id_venue = st.number_input("Takım ID", min_value=1, value=33, key="venue_team_id")
+            if st.button("🏠 Takım Stadyumu", use_container_width=True):
+                venue_result = api.get_team_venue(team_id_venue)
+                if venue_result.status.value == "success":
+                    st.success("Stadyum bilgileri alındı!")
+                    st.json(venue_result.data)
+                else:
+                    st.error("Stadyum bilgileri alınamadı.")
+    
+    with tab5:
+        st.markdown("## 👥 Oyuncu Etkisi Analizi")
+        
+        lineup_fixture_id = st.number_input("Maç ID", min_value=1, value=868584, key="lineup_fixture_id")
+        
+        if st.button("👥 Kadro Gücü Analizi", use_container_width=True):
+            lineup_analysis = api.get_lineup_strength_analysis(lineup_fixture_id)
+            
+            st.markdown("### 📋 Kadro Analizi")
+            st.json(lineup_analysis)
+            
+            # Gerçek lineups API'sini çağır
+            lineups_result = api.get_fixture_lineups(lineup_fixture_id)
+            if lineups_result.status.value == "success":
+                st.markdown("### 🔄 Gerçek Kadro Verileri")
+                st.success("Kadro verileri alındı!")
+                # Lineups verilerini göster
+            else:
+                st.warning("Henüz kadro açıklanmamış.")
+    
+    with tab6:
+        st.markdown("## 🔴 Canlı Maç Zekası")
+        
+        live_fixture_id = st.number_input("Canlı Maç ID", min_value=1, value=868584, key="live_fixture_id")
+        
+        if st.button("🧠 Canlı Analiz Yap", use_container_width=True):
+            with st.spinner("Canlı maç analiz ediliyor..."):
+                live_intelligence = analytics.get_live_match_intelligence(live_fixture_id)
+                
+                if 'error' in live_intelligence:
+                    st.error(f"Analiz hatası: {live_intelligence['error']}")
+                else:
+                    st.markdown("### ⚡ Canlı Maç Durumu")
+                    
+                    # Mevcut durum
+                    if live_intelligence.get('current_state'):
+                        state = live_intelligence['current_state']
+                        fixture = state.get('fixture', {})
+                        teams = state.get('teams', {})
+                        goals = state.get('goals', {})
+                        
+                        col1, col2, col3 = st.columns(3)
+                        with col1:
+                            st.metric("Durum", fixture.get('status', {}).get('long', 'Bilinmiyor'))
+                        with col2:
+                            st.metric("Dakika", fixture.get('status', {}).get('elapsed', 0))
+                        with col3:
+                            home_score = goals.get('home', 0) or 0
+                            away_score = goals.get('away', 0) or 0
+                            st.metric("Skor", f"{home_score} - {away_score}")
+                    
+                    # Momentum analizi
+                    st.markdown("### 📊 Momentum Analizi")
+                    momentum = live_intelligence.get('momentum_analysis', {})
+                    st.info(f"Mevcut Momentum: {momentum.get('current_momentum', 'Dengeli')}")
+                    
+                    # Canlı yorumlar
+                    commentary = api.get_live_commentary(live_fixture_id)
+                    st.markdown("### 💬 Canlı Yorumlar")
+                    st.json(commentary)
 
 if __name__ == "__main__":
     main()

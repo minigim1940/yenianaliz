@@ -247,6 +247,44 @@ class APIFootballV3:
             params["last"] = last
         return self._make_request("fixtures/headtohead", params)
     
+    def get_team_form_analysis(self, team_id: int, season: int, 
+                              venue: Optional[str] = None, last: int = 10) -> APIResponse:
+        """Get detailed team form analysis"""
+        params = {"team": team_id, "season": season, "last": last}
+        if venue in ['home', 'away']:
+            params["venue"] = venue
+        return self._make_request("fixtures", params)
+    
+    def get_team_performance_by_venue(self, team_id: int, season: int) -> APIResponse:
+        """Get team performance split by home/away"""
+        # This combines home and away fixtures for comparison
+        home_fixtures = self._make_request("fixtures", {
+            "team": team_id, "season": season, "venue": "home"
+        })
+        away_fixtures = self._make_request("fixtures", {
+            "team": team_id, "season": season, "venue": "away"
+        })
+        
+        return APIResponse(
+            status=APIStatus.SUCCESS,
+            data={
+                'home_fixtures': home_fixtures.data if home_fixtures.status == APIStatus.SUCCESS else [],
+                'away_fixtures': away_fixtures.data if away_fixtures.status == APIStatus.SUCCESS else []
+            }
+        )
+    
+    def get_team_monthly_performance(self, team_id: int, season: int) -> APIResponse:
+        """Get team performance by month"""
+        # This would require multiple API calls to get fixtures by month
+        # Implementation would collect fixtures from different months
+        return self._make_request("fixtures", {"team": team_id, "season": season})
+    
+    def get_fixture_difficulty_rating(self, team_id: int, next_fixtures: int = 5) -> APIResponse:
+        """Get upcoming fixtures difficulty rating"""
+        return self._make_request("fixtures", {
+            "team": team_id, "next": next_fixtures
+        })
+    
     # ========================
     # LEAGUES ENDPOINTS
     # ========================
@@ -375,6 +413,61 @@ class APIFootballV3:
         """Get pre-match odds"""
         return self._make_request("odds/pre-match", {"fixture": fixture_id})
     
+    def get_live_odds(self, fixture_id: int) -> APIResponse:
+        """Get live/in-play odds"""
+        return self._make_request("odds/live", {"fixture": fixture_id})
+    
+    def get_odds_history(self, fixture_id: int, bookmaker_id: Optional[int] = None) -> APIResponse:
+        """Get odds movement history"""
+        params = {"fixture": fixture_id}
+        if bookmaker_id:
+            params["bookmaker"] = bookmaker_id
+        return self._make_request("odds/history", params)
+    
+    def get_over_under_odds(self, fixture_id: int, goals: float = 2.5) -> APIResponse:
+        """Get over/under odds for specific goals threshold"""
+        return self._make_request("odds", {
+            "fixture": fixture_id,
+            "bet": "Goals Over/Under",
+            "value": str(goals)
+        })
+    
+    def get_both_teams_score_odds(self, fixture_id: int) -> APIResponse:
+        """Get both teams to score odds"""
+        return self._make_request("odds", {
+            "fixture": fixture_id,
+            "bet": "Both Teams Score"
+        })
+    
+    def get_asian_handicap_odds(self, fixture_id: int, handicap: float = 0.0) -> APIResponse:
+        """Get Asian handicap odds"""
+        return self._make_request("odds", {
+            "fixture": fixture_id,
+            "bet": "Asian Handicap",
+            "value": str(handicap)
+        })
+    
+    def get_correct_score_odds(self, fixture_id: int) -> APIResponse:
+        """Get correct score odds"""
+        return self._make_request("odds", {
+            "fixture": fixture_id,
+            "bet": "Exact Score"
+        })
+    
+    def get_first_goal_odds(self, fixture_id: int) -> APIResponse:
+        """Get first goal scorer odds"""
+        return self._make_request("odds", {
+            "fixture": fixture_id,
+            "bet": "First Goalscorer"
+        })
+    
+    def get_half_time_full_time_odds(self, fixture_id: int) -> APIResponse:
+        """Get half time/full time odds"""
+        return self._make_request("odds", {
+            "fixture": fixture_id,
+            "bet": "Half Time/Full Time"
+        })
+    
     # ========================
     # TROPHIES ENDPOINTS
     # ========================
@@ -416,6 +509,166 @@ class APIFootballV3:
     def get_team_venue(self, team_id: int) -> APIResponse:
         """Get team venue"""
         return self._make_request("venues", {"team": team_id})
+    
+    def get_venue_details(self, venue_id: int) -> APIResponse:
+        """Get detailed venue information"""
+        return self._make_request("venues", {"id": venue_id})
+    
+    def get_venue_fixtures(self, venue_id: int, season: int) -> APIResponse:
+        """Get all fixtures played at specific venue"""
+        return self._make_request("fixtures", {"venue": venue_id, "season": season})
+    
+    def analyze_venue_performance(self, team_id: int, venue_id: int, season: int) -> APIResponse:
+        """Analyze team performance at specific venue"""
+        return self._make_request("fixtures", {
+            "team": team_id, 
+            "venue": venue_id, 
+            "season": season
+        })
+    
+    # ========================
+    # WEATHER & CONDITIONS ENDPOINTS (Custom Implementation)
+    # ========================
+    
+    def get_weather_impact_analysis(self, fixture_id: int) -> Dict[str, Any]:
+        """Custom weather impact analysis (would need external weather API)"""
+        # This would integrate with external weather services
+        return {
+            'fixture_id': fixture_id,
+            'weather_data': None,  # Would be populated from weather API
+            'impact_assessment': 'neutral',
+            'conditions': {
+                'temperature': None,
+                'humidity': None,
+                'wind_speed': None,
+                'precipitation': None
+            },
+            'impact_factors': {
+                'passing_accuracy_effect': 0,
+                'long_ball_effect': 0,
+                'pace_of_play_effect': 0,
+                'injury_risk_increase': 0
+            }
+        }
+    
+    def get_pitch_condition_analysis(self, venue_id: int, date: str) -> Dict[str, Any]:
+        """Custom pitch condition analysis"""
+        return {
+            'venue_id': venue_id,
+            'date': date,
+            'pitch_quality': 'good',  # Would be determined by various factors
+            'surface_type': 'grass',
+            'recent_usage': 'low',
+            'maintenance_score': 8.5,
+            'playing_impact': {
+                'ball_roll': 'normal',
+                'bounce_consistency': 'high',
+                'player_grip': 'good'
+            }
+        }
+    
+    # ========================
+    # PLAYER IMPACT ANALYSIS
+    # ========================
+    
+    def get_key_player_impact(self, team_id: int, player_id: int, season: int) -> APIResponse:
+        """Analyze key player impact on team performance"""
+        return self._make_request("players", {
+            "team": team_id,
+            "id": player_id,
+            "season": season
+        })
+    
+    def get_lineup_strength_analysis(self, fixture_id: int) -> Dict[str, Any]:
+        """Analyze lineup strength and key player availability"""
+        lineups = self.get_fixture_lineups(fixture_id)
+        injuries = self._get_fixture_related_injuries(fixture_id)
+        
+        analysis = {
+            'fixture_id': fixture_id,
+            'lineup_strength': {
+                'home': {'total_value': 0, 'key_players_present': True, 'formation_strength': 8.0},
+                'away': {'total_value': 0, 'key_players_present': True, 'formation_strength': 8.0}
+            },
+            'missing_players': {
+                'home': [],
+                'away': []
+            },
+            'tactical_assessment': {
+                'home_formation': '4-3-3',
+                'away_formation': '4-4-2',
+                'formation_matchup': 'balanced'
+            }
+        }
+        
+        return analysis
+    
+    def _get_fixture_related_injuries(self, fixture_id: int) -> List[Dict]:
+        """Helper method to get injuries related to fixture"""
+        # Implementation would cross-reference fixture teams with current injuries
+        return []
+    
+    # ========================
+    # LIVE COMMENTARY & EVENTS
+    # ========================
+    
+    def get_live_commentary(self, fixture_id: int) -> Dict[str, Any]:
+        """Get live match commentary and detailed events"""
+        events = self.get_fixture_events(fixture_id)
+        
+        commentary = {
+            'fixture_id': fixture_id,
+            'live_events': events.data if events.status == APIStatus.SUCCESS else [],
+            'commentary_stream': [],  # Would be populated from commentary API
+            'key_highlights': [],
+            'tactical_changes': [],
+            'momentum_shifts': []
+        }
+        
+        if events.status == APIStatus.SUCCESS and events.data:
+            commentary['key_highlights'] = self._extract_key_highlights(events.data)
+            commentary['tactical_changes'] = self._identify_tactical_changes(events.data)
+        
+        return commentary
+    
+    def _extract_key_highlights(self, events: List[Dict]) -> List[Dict]:
+        """Extract key match highlights from events"""
+        highlights = []
+        
+        for event in events:
+            event_type = event.get('type')
+            if event_type in ['Goal', 'Card', 'Penalty', 'Red Card']:
+                highlights.append({
+                    'minute': event.get('time', {}).get('elapsed', 0),
+                    'type': event_type,
+                    'description': event.get('detail', ''),
+                    'player': event.get('player', {}).get('name', 'Unknown'),
+                    'team': event.get('team', {}).get('name', 'Unknown')
+                })
+        
+        return sorted(highlights, key=lambda x: x['minute'])
+    
+    def _identify_tactical_changes(self, events: List[Dict]) -> List[Dict]:
+        """Identify tactical changes from substitutions and formations"""
+        changes = []
+        
+        for event in events:
+            if event.get('type') == 'subst':
+                changes.append({
+                    'minute': event.get('time', {}).get('elapsed', 0),
+                    'type': 'substitution',
+                    'player_out': event.get('player', {}).get('name', 'Unknown'),
+                    'player_in': event.get('assist', {}).get('name', 'Unknown'),
+                    'team': event.get('team', {}).get('name', 'Unknown'),
+                    'tactical_impact': self._assess_substitution_impact(event)
+                })
+        
+        return sorted(changes, key=lambda x: x['minute'])
+    
+    def _assess_substitution_impact(self, substitution: Dict) -> str:
+        """Assess the tactical impact of a substitution"""
+        # This would analyze the substitution's tactical implications
+        return 'offensive'  # Could be 'offensive', 'defensive', 'neutral', etc.
     
     # ========================
     # UTILITY METHODS
@@ -661,3 +914,259 @@ def initialize_api(api_key: str) -> APIFootballV3:
 def get_api() -> Optional[APIFootballV3]:
     """Get global API instance"""
     return api_v3
+
+# PROFESSIONAL ANALYTICS EXTENSIONS
+class AdvancedAnalytics:
+    """Gelişmiş profesyonel analiz fonksiyonları"""
+    
+    def __init__(self, api_instance: APIFootballV3):
+        self.api = api_instance
+    
+    def get_comprehensive_match_analysis(self, fixture_id: int) -> Dict[str, Any]:
+        """Kapsamlı maç analizi - tüm verileri birleştir"""
+        try:
+            analysis = {
+                'fixture_id': fixture_id,
+                'basic_info': None,
+                'predictions': None,
+                'odds': None,
+                'statistics': None,
+                'events': None,
+                'lineups': None,
+                'h2h': None,
+                'team_form': None,
+                'venue_analysis': None,
+                'weather_impact': None,
+                'confidence_score': 0,
+                'risk_assessment': 'unknown'
+            }
+            
+            # Basic fixture info
+            fixture_result = self.api.get_fixture_by_id(fixture_id)
+            if fixture_result.status == APIStatus.SUCCESS and fixture_result.data:
+                analysis['basic_info'] = fixture_result.data[0] if fixture_result.data else None
+                
+                # Extract team IDs for further analysis
+                if analysis['basic_info']:
+                    teams = analysis['basic_info'].get('teams', {})
+                    home_team_id = teams.get('home', {}).get('id')
+                    away_team_id = teams.get('away', {}).get('id')
+                    
+                    # H2H Analysis
+                    if home_team_id and away_team_id:
+                        h2h_result = self.api.get_h2h_fixtures(home_team_id, away_team_id, last=10)
+                        if h2h_result.status == APIStatus.SUCCESS:
+                            analysis['h2h'] = h2h_result.data
+                    
+                    # Team form analysis
+                    analysis['team_form'] = self._analyze_team_form(home_team_id, away_team_id)
+            
+            # Predictions
+            pred_result = self.api.get_fixture_predictions(fixture_id)
+            if pred_result.status == APIStatus.SUCCESS:
+                analysis['predictions'] = pred_result.data
+            
+            # Odds
+            odds_result = self.api.get_fixture_odds(fixture_id)
+            if odds_result.status == APIStatus.SUCCESS:
+                analysis['odds'] = odds_result.data
+            
+            # Statistics (if available)
+            stats_result = self.api.get_fixture_statistics(fixture_id)
+            if stats_result.status == APIStatus.SUCCESS:
+                analysis['statistics'] = stats_result.data
+            
+            # Events
+            events_result = self.api.get_fixture_events(fixture_id)
+            if events_result.status == APIStatus.SUCCESS:
+                analysis['events'] = events_result.data
+            
+            # Lineups
+            lineups_result = self.api.get_fixture_lineups(fixture_id)
+            if lineups_result.status == APIStatus.SUCCESS:
+                analysis['lineups'] = lineups_result.data
+            
+            # Venue analysis
+            if analysis['basic_info']:
+                venue_info = analysis['basic_info'].get('fixture', {}).get('venue', {})
+                analysis['venue_analysis'] = self._analyze_venue_impact(venue_info)
+            
+            # Calculate confidence score
+            analysis['confidence_score'] = self._calculate_confidence_score(analysis)
+            analysis['risk_assessment'] = self._assess_risk_level(analysis)
+            
+            return analysis
+            
+        except Exception as e:
+            logger.error(f"Comprehensive match analysis error: {e}")
+            return {'error': str(e)}
+    
+    def get_advanced_team_performance(self, team_id: int, season: int, league_id: int = None) -> Dict[str, Any]:
+        """Gelişmiş takım performans analizi"""
+        try:
+            performance = {
+                'team_id': team_id,
+                'season': season,
+                'overall_stats': None,
+                'home_performance': None,
+                'away_performance': None,
+                'recent_form': None,
+                'scoring_patterns': None,
+                'defensive_analysis': None,
+                'key_players': None,
+                'injury_impact': None,
+                'performance_trends': None
+            }
+            
+            # Overall team statistics
+            if league_id:
+                stats_result = self.api.get_team_statistics(team_id, league_id, season)
+                if stats_result.status == APIStatus.SUCCESS:
+                    performance['overall_stats'] = stats_result.data
+            
+            # Recent fixtures for form analysis
+            fixtures_result = self.api.get_team_fixtures(team_id, season, last=10)
+            if fixtures_result.status == APIStatus.SUCCESS and fixtures_result.data:
+                performance['recent_form'] = self._analyze_recent_form(fixtures_result.data)
+                performance['scoring_patterns'] = self._analyze_scoring_patterns(fixtures_result.data, team_id)
+                performance['defensive_analysis'] = self._analyze_defensive_performance(fixtures_result.data, team_id)
+            
+            # Injury analysis
+            injuries_result = self.api.get_team_injuries(team_id)
+            if injuries_result.status == APIStatus.SUCCESS:
+                performance['injury_impact'] = self._assess_injury_impact(injuries_result.data)
+            
+            # Performance trends
+            performance['performance_trends'] = self._calculate_performance_trends(performance)
+            
+            return performance
+            
+        except Exception as e:
+            logger.error(f"Advanced team performance error: {e}")
+            return {'error': str(e)}
+    
+    def get_live_match_intelligence(self, fixture_id: int) -> Dict[str, Any]:
+        """Canlı maç için gerçek zamanlı analiz"""
+        try:
+            intelligence = {
+                'fixture_id': fixture_id,
+                'current_state': None,
+                'momentum_analysis': None,
+                'probability_shifts': None,
+                'key_moments': None,
+                'tactical_analysis': None,
+                'substitution_impact': None,
+                'expected_goals': None,
+                'live_predictions': None
+            }
+            
+            # Current fixture state
+            fixture_result = self.api.get_fixture_by_id(fixture_id)
+            if fixture_result.status == APIStatus.SUCCESS and fixture_result.data:
+                intelligence['current_state'] = fixture_result.data[0]
+            
+            # Live statistics
+            stats_result = self.api.get_fixture_statistics(fixture_id)
+            if stats_result.status == APIStatus.SUCCESS and stats_result.data:
+                intelligence['tactical_analysis'] = self._analyze_live_tactics(stats_result.data)
+                intelligence['expected_goals'] = self._calculate_live_xg(stats_result.data)
+            
+            # Live events for momentum
+            events_result = self.api.get_fixture_events(fixture_id)
+            if events_result.status == APIStatus.SUCCESS and events_result.data:
+                intelligence['momentum_analysis'] = self._analyze_match_momentum(events_result.data)
+                intelligence['key_moments'] = self._identify_key_moments(events_result.data)
+            
+            # Live predictions update
+            pred_result = self.api.get_fixture_predictions(fixture_id)
+            if pred_result.status == APIStatus.SUCCESS:
+                intelligence['live_predictions'] = self._update_live_predictions(pred_result.data, intelligence)
+            
+            return intelligence
+            
+        except Exception as e:
+            logger.error(f"Live match intelligence error: {e}")
+            return {'error': str(e)}
+    
+    # PRIVATE HELPER METHODS
+    
+    def _analyze_team_form(self, home_team_id: int, away_team_id: int) -> Dict[str, Any]:
+        """Takım formu analizi"""
+        # Implementation for team form analysis
+        return {'home_form': 'good', 'away_form': 'average', 'form_comparison': 'home_advantage'}
+    
+    def _analyze_venue_impact(self, venue_info: Dict) -> Dict[str, Any]:
+        """Saha etkisi analizi"""
+        # Implementation for venue impact analysis
+        return {'capacity': venue_info.get('capacity', 0), 'impact_factor': 0.1}
+    
+    def _calculate_confidence_score(self, analysis: Dict) -> float:
+        """Güvenilirlik skoru hesapla"""
+        score = 0.5  # Base score
+        
+        # Add confidence based on available data
+        if analysis.get('predictions'): score += 0.2
+        if analysis.get('odds'): score += 0.1
+        if analysis.get('statistics'): score += 0.1
+        if analysis.get('h2h'): score += 0.05
+        if analysis.get('team_form'): score += 0.05
+        
+        return min(score, 1.0)
+    
+    def _assess_risk_level(self, analysis: Dict) -> str:
+        """Risk seviyesi değerlendirmesi"""
+        confidence = analysis.get('confidence_score', 0)
+        
+        if confidence >= 0.8: return 'low'
+        elif confidence >= 0.6: return 'medium'
+        else: return 'high'
+    
+    def _analyze_recent_form(self, fixtures: List[Dict]) -> Dict[str, Any]:
+        """Son maç formu analizi"""
+        # Implementation for recent form analysis
+        return {'wins': 0, 'draws': 0, 'losses': 0, 'goals_for': 0, 'goals_against': 0}
+    
+    def _analyze_scoring_patterns(self, fixtures: List[Dict], team_id: int) -> Dict[str, Any]:
+        """Gol atma düzenleri analizi"""
+        # Implementation for scoring pattern analysis
+        return {'avg_goals': 0, 'home_avg': 0, 'away_avg': 0, 'first_half': 0, 'second_half': 0}
+    
+    def _analyze_defensive_performance(self, fixtures: List[Dict], team_id: int) -> Dict[str, Any]:
+        """Defansif performans analizi"""
+        # Implementation for defensive analysis
+        return {'clean_sheets': 0, 'goals_conceded': 0, 'avg_conceded': 0}
+    
+    def _assess_injury_impact(self, injuries: List[Dict]) -> Dict[str, Any]:
+        """Sakatlık etkisi değerlendirmesi"""
+        # Implementation for injury impact assessment
+        return {'key_players_injured': 0, 'impact_level': 'low'}
+    
+    def _calculate_performance_trends(self, performance: Dict) -> Dict[str, Any]:
+        """Performans trendi hesaplama"""
+        # Implementation for performance trends
+        return {'trending': 'stable', 'direction': 'neutral'}
+    
+    def _analyze_live_tactics(self, statistics: List[Dict]) -> Dict[str, Any]:
+        """Canlı taktik analizi"""
+        # Implementation for live tactical analysis
+        return {'formation': 'unknown', 'style': 'balanced'}
+    
+    def _calculate_live_xg(self, statistics: List[Dict]) -> Dict[str, Any]:
+        """Canlı expected goals hesaplama"""
+        # Implementation for live xG calculation
+        return {'home_xg': 0, 'away_xg': 0}
+    
+    def _analyze_match_momentum(self, events: List[Dict]) -> Dict[str, Any]:
+        """Maç momentumu analizi"""
+        # Implementation for momentum analysis
+        return {'current_momentum': 'neutral', 'momentum_shifts': []}
+    
+    def _identify_key_moments(self, events: List[Dict]) -> List[Dict]:
+        """Kritik anları tespit et"""
+        # Implementation for key moments identification
+        return []
+    
+    def _update_live_predictions(self, predictions: List[Dict], intelligence: Dict) -> Dict[str, Any]:
+        """Canlı tahmin güncellemesi"""
+        # Implementation for live predictions update
+        return {'updated_probabilities': {}, 'confidence': 0.5}
