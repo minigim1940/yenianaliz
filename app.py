@@ -4297,6 +4297,7 @@ def main():
         st.session_state['username'] = 'dev_user'
         st.session_state['name'] = 'Developer'
         st.session_state['admin_users'] = ['dev_user']
+        st.session_state['tier'] = 'admin'  # Development mode için admin tier
     
     # KALICI OTURUM - LocalStorage ile yönetim
     # JavaScript ile localStorage'dan kullanıcı bilgisini oku
@@ -4517,8 +4518,14 @@ def main():
 
     if st.session_state["authentication_status"]:
         username = st.session_state.get('username')
-        st.session_state['tier'] = config['credentials']['usernames'][username]['tier']
-        user_tier = st.session_state.get('tier')
+        
+        # Development user için özel kontrol
+        if username == 'dev_user':
+            st.session_state['tier'] = 'admin'
+            user_tier = 'admin'
+        else:
+            st.session_state['tier'] = config['credentials']['usernames'][username]['tier']
+            user_tier = st.session_state.get('tier')
 
         try:
             api_utils.ensure_user_limits(username, user_tier)
@@ -5460,6 +5467,7 @@ def main():
                         st.session_state['username'] = 'dev_user'
                         st.session_state['name'] = 'Developer'
                         st.session_state['admin_users'] = ['dev_user']
+                        st.session_state['tier'] = 'admin'  # Development için admin tier
                         st.query_params['dev'] = 'true'
                         st.success("Development mode aktif!")
                         st.rerun()
