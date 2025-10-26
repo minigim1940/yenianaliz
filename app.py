@@ -3017,50 +3017,103 @@ def display_live_matches():
     """Canlı maçları göster"""
     st.markdown("### ⚽ Canlı Maçlar")
     
+    # Auto-refresh butonu
+    col1, col2, col3 = st.columns([2, 1, 1])
+    
+    with col1:
+        auto_refresh = st.checkbox("🔄 Otomatik Yenile (30 saniye)", key="auto_refresh_live")
+    
+    with col2:
+        if st.button("🔄 Şimdi Yenile", key="manual_refresh_live"):
+            st.rerun()
+    
+    with col3:
+        # Son güncelleme zamanı
+        from datetime import datetime
+        current_time = datetime.now().strftime("%H:%M:%S")
+        st.write(f"⏰ Son: {current_time}")
+    
+    # Auto-refresh logic
+    if auto_refresh:
+        import time
+        time.sleep(30)
+        st.rerun()
+    
     try:
         from football_api_v3 import APIFootballV3
         
         api = APIFootballV3(API_KEY)
         
         with st.spinner("Canlı maçlar alınıyor..."):
-            # Bugünkü canlı maçları al
-            from datetime import datetime
-            today = datetime.now().strftime('%Y-%m-%d')
-            
-            fixtures_result = api.get_fixtures(date=today, live=True)
+            # Canlı maçları al
+            fixtures_result = api.get_live_fixtures()
             
         if fixtures_result.status.value == "success" and fixtures_result.data:
             live_matches = fixtures_result.data
             
             st.success(f"🔴 **{len(live_matches)} canlı maç** bulundu!")
             
+            # Canlı maçları liglere göre grupla
+            leagues = {}
             for match in live_matches:
-                display_live_match_card(match)
+                league_name = match.get('league', {}).get('name', 'Diğer')
+                if league_name not in leagues:
+                    leagues[league_name] = []
+                leagues[league_name].append(match)
+            
+            # Her lig için maçları göster
+            for league_name, matches in leagues.items():
+                with st.expander(f"🏆 {league_name} ({len(matches)} maç)", expanded=True):
+                    for match in matches:
+                        display_live_match_card(match)
+                        
+                        # Maç detayları butonu
+                        fixture_id = match.get('fixture', {}).get('id')
+                        if fixture_id:
+                            if st.button(f"📊 {match.get('teams', {}).get('home', {}).get('name', '')} vs {match.get('teams', {}).get('away', {}).get('name', '')} Detayları", key=f"live_detail_{fixture_id}"):
+                                st.session_state.selected_fixture = fixture_id
+                                st.session_state.view = 'manual'
+                                st.rerun()
                 
         else:
             st.info("📺 Şu anda canlı maç bulunmuyor")
             
             # Yaklaşan maçları göster
-            st.markdown("### ⏰ Yaklaşan Maçlar")
+            st.markdown("---")
+            st.markdown("### ⏰ Yaklaşan Maçlar (2 Saat İçinde)")
             display_upcoming_matches_today()
             
     except Exception as e:
         st.error(f"❌ Canlı maçlar alınırken hata oluştu: {e}")
+        
+        # Alternatif canlı maç kaynağı (fallback)
+        st.markdown("---")
+        st.info("💡 Alternatif kaynak deneniyor...")
+        display_fallback_live_matches()
 
 def display_live_match_card(match):
-    """Canlı maç kartını göster"""
+    """Gelişmiş canlı maç kartını göster"""
     try:
         # Maç bilgileri
-        home_team = match.get('teams', {}).get('home', {}).get('name', 'Bilinmiyor')
-        away_team = match.get('teams', {}).get('away', {}).get('name', 'Bilinmiyor')
-        home_score = match.get('goals', {}).get('home', 0)
-        away_score = match.get('goals', {}).get('away', 0)
-        minute = match.get('fixture', {}).get('status', {}).get('elapsed', 0)
-        league_name = match.get('league', {}).get('name', 'Bilinmiyor')
+        fixture = match.get('fixture', {})
+        teams = match.get('teams', {})
+        goals = match.get('goals', {})
+        league = match.get('league', {})
+        
+        home_team = teams.get('home', {}).get('name', 'Bilinmiyor')
+        away_team = teams.get('away', {}).get('name', 'Bilinmiyor')
+        home_score = goals.get('home', 0) or 0
+        away_score = goals.get('away', 0) or 0
+        minute = fixture.get('status', {}).get('elapsed', 0)
+        league_name = league.get('name', 'Bilinmiyor')
+        
+        # Logo URL'leri
+        home_logo = teams.get('home', {}).get('logo', '')
+        away_logo = teams.get('away', {}).get('logo', '')
         
         # Maç durumu
-        status_short = match.get('fixture', {}).get('status', {}).get('short', 'NS')
-        status_long = match.get('fixture', {}).get('status', {}).get('long', 'Başlamamış')
+        status_short = fixture.get('status', {}).get('short', 'NS')
+        status_long = fixture.get('status', {}).get('long', 'Başlamamış')
         
         # Türkçe durum çevirisi
         status_tr = {
@@ -3070,55 +3123,123 @@ def display_live_match_card(match):
             'HT': 'Devre Arası',
             '2H': 'İkinci Yarı',
             'ET': 'Uzatma',
-            'FT': 'Bitti',
+            'BT': 'Ara',
+            'P': 'Penaltı',
+            'FT': 'Maç Bitti',
             'AET': 'Uzatmalarda Bitti',
             'PEN': 'Penaltılarda Bitti',
             'LIVE': 'Canlı'
         }.get(status_short, status_long)
         
         # Kart stilini belirle
-        if status_short in ['1H', '2H', 'ET']:
+        if status_short in ['1H', '2H', 'ET', 'LIVE']:
             card_color = "#ff4444"  # Kırmızı - Canlı
             status_icon = "🔴"
+            pulse_animation = "animation: pulse 2s infinite;"
         elif status_short == 'HT':
             card_color = "#ffaa00"  # Turuncu - Devre arası
             status_icon = "🟠"
-        elif status_short == 'FT':
+            pulse_animation = ""
+        elif status_short in ['FT', 'AET', 'PEN']:
             card_color = "#44ff44"  # Yeşil - Bitti
             status_icon = "🟢"
+            pulse_animation = ""
         else:
             card_color = "#4444ff"  # Mavi - Diğer
             status_icon = "🔵"
+            pulse_animation = ""
         
-        # Maç kartı
-        with st.container():
-            st.markdown(f"""
-            <div style="
-                border-left: 4px solid {card_color}; 
-                padding: 15px; 
-                margin: 10px 0; 
-                background-color: #1e1e1e; 
-                border-radius: 8px;
-                box-shadow: 0 2px 4px rgba(0,0,0,0.3);
-            ">
-                <div style="display: flex; justify-content: space-between; align-items: center;">
-                    <div>
-                        <h4 style="margin: 0; color: #ffffff;">
-                            {status_icon} {home_team} <span style="color: {card_color};">{home_score}-{away_score}</span> {away_team}
-                        </h4>
-                        <p style="margin: 5px 0; color: #cccccc;">
-                            🏆 {league_name}
-                        </p>
-                        <p style="margin: 0; color: {card_color}; font-weight: bold;">
-                            ⏱️ {status_tr} {f"({minute}')" if minute and status_short in ['1H', '2H', 'ET'] else ""}
-                        </p>
-                    </div>
+        # Gelişmiş maç kartı
+        col1, col2, col3, col4, col5 = st.columns([1, 2, 1, 2, 1])
+        
+        with col1:
+            if home_logo:
+                st.image(home_logo, width=50)
+            else:
+                st.write("🏠")
+        
+        with col2:
+            st.markdown(f"**{home_team}**")
+            
+        with col3:
+            # Skor ve durum
+            if status_short in ['1H', '2H', 'ET', 'LIVE']:
+                st.markdown(f"""
+                <div style="text-align: center; {pulse_animation}">
+                    <h2 style="color: {card_color}; margin: 0;">{home_score} - {away_score}</h2>
+                    <p style="color: {card_color}; margin: 0; font-weight: bold;">
+                        {status_icon} {minute}' {status_tr}
+                    </p>
                 </div>
-            </div>
-            """, unsafe_allow_html=True)
+                """, unsafe_allow_html=True)
+            else:
+                st.markdown(f"""
+                <div style="text-align: center;">
+                    <h3 style="color: {card_color}; margin: 0;">{home_score} - {away_score}</h3>
+                    <p style="color: {card_color}; margin: 0;">{status_icon} {status_tr}</p>
+                </div>
+                """, unsafe_allow_html=True)
+        
+        with col4:
+            st.markdown(f"**{away_team}**")
+            
+        with col5:
+            if away_logo:
+                st.image(away_logo, width=50)
+            else:
+                st.write("✈️")
+        
+        # Ek bilgiler (sadece canlı maçlarda)
+        if status_short in ['1H', '2H', 'ET', 'LIVE']:
+            col1, col2, col3 = st.columns(3)
+            
+            with col1:
+                # Son olayları göster (eğer varsa)
+                st.caption("🔥 Canlı")
+                
+            with col2:
+                st.caption(f"🏆 {league_name}")
+                
+            with col3:
+                # Dakika bazlı günceleme
+                if minute:
+                    if minute > 45 and status_short == '1H':
+                        st.caption("⏰ Uzatma dakikaları")
+                    elif minute > 90 and status_short == '2H':
+                        st.caption("⏰ Uzatma dakikaları")
+                    else:
+                        st.caption(f"⏱️ {minute}. dakika")
+        
+        # Ayırıcı
+        st.markdown("---")
             
     except Exception as e:
         st.error(f"Maç kartı gösterilirken hata: {e}")
+
+def display_fallback_live_matches():
+    """Alternatif canlı maç kaynağı"""
+    try:
+        st.info("🔄 Alternatif canlı maç kaynağı kullanılıyor...")
+        
+        # Basit bilgi göster
+        from datetime import datetime
+        current_time = datetime.now()
+        
+        st.markdown(f"""
+        ### 📺 Canlı Maç Durumu
+        
+        **⏰ Şu anki zaman:** {current_time.strftime('%H:%M:%S')}
+        
+        **🔍 Arama Önerileri:**
+        - Ana sayfa > Manuel Analiz'den belirli bir maç arayabilirsiniz
+        - Bugünkü Tüm Maçlar sekmesinden günün maçlarını görüntüleyebilirsiniz
+        - Biraz sonra tekrar deneyebilirsiniz
+        
+        **💡 İpucu:** Sayfayı yenilemek için F5'e basın veya yukarıdaki "🔄 Şimdi Yenile" butonunu kullanın.
+        """)
+        
+    except Exception as e:
+        st.error(f"Fallback sistem hatası: {e}")
 
 def display_todays_matches():
     """Bugünkü tüm maçları göster"""
@@ -3136,7 +3257,7 @@ def display_todays_matches():
         
         with st.spinner("Bugünkü maçlar alınıyor..."):
             today = datetime.now().strftime('%Y-%m-%d')
-            fixtures_result = api.get_fixtures(date=today)
+            fixtures_result = api.get_fixtures_by_date(today)
             
         if fixtures_result.status.value == "success" and fixtures_result.data:
             todays_matches = fixtures_result.data
@@ -3224,28 +3345,123 @@ def display_upcoming_matches_today():
     try:
         from football_api_v3 import APIFootballV3
         from datetime import datetime, timedelta
+        import pytz
         
         api = APIFootballV3(API_KEY)
         
-        # Önümüzdeki 6 saat içindeki maçları al
+        # Bugünkü maçları al
         now = datetime.now()
-        end_time = now + timedelta(hours=6)
+        today = now.strftime('%Y-%m-%d')
         
-        fixtures_result = api.get_fixtures(
-            date=now.strftime('%Y-%m-%d'),
-            status='NS'  # Başlamamış maçlar
-        )
+        fixtures_result = api.get_fixtures_by_date(today)
         
         if fixtures_result.status.value == "success" and fixtures_result.data:
-            upcoming = fixtures_result.data[:5]  # İlk 5 maç
+            all_matches = fixtures_result.data
             
-            st.markdown("#### ⏰ Yaklaşan 5 Maç")
+            # Yaklaşan maçları filtrele (başlamamış ve önümüzdeki 6 saat içinde)
+            upcoming_matches = []
+            current_timestamp = now.timestamp()
+            six_hours_later = current_timestamp + (6 * 3600)  # 6 saat sonrası
             
-            for match in upcoming:
-                display_todays_match_card(match, st.session_state.get('selected_timezone', 'Europe/Istanbul'))
+            for match in all_matches:
+                fixture = match.get('fixture', {})
+                status_short = fixture.get('status', {}).get('short', 'NS')
+                match_timestamp = fixture.get('timestamp', 0)
+                
+                # Başlamamış ve önümüzdeki 6 saat içindeki maçlar
+                if (status_short == 'NS' and 
+                    current_timestamp <= match_timestamp <= six_hours_later):
+                    upcoming_matches.append(match)
+            
+            if upcoming_matches:
+                st.markdown(f"#### ⏰ Yaklaşan {min(len(upcoming_matches), 5)} Maç (2 Saat İçinde)")
+                
+                # En yakın 5 maçı göster
+                upcoming_matches_sorted = sorted(upcoming_matches, 
+                                               key=lambda x: x.get('fixture', {}).get('timestamp', 0))
+                
+                for match in upcoming_matches_sorted[:5]:
+                    display_upcoming_match_card(match, st.session_state.get('selected_timezone', 'Europe/Istanbul'))
+            else:
+                st.info("📅 Önümüzdeki 6 saat içinde başlayacak maç bulunmuyor")
                 
     except Exception as e:
-        st.info("Yaklaşan maçlar gösterilemedi")
+        st.info(f"Yaklaşan maçlar gösterilemedi: {e}")
+
+def display_upcoming_match_card(match, timezone):
+    """Yaklaşan maç kartını göster"""
+    try:
+        from datetime import datetime
+        import pytz
+        
+        # Maç bilgileri
+        fixture = match.get('fixture', {})
+        teams = match.get('teams', {})
+        league = match.get('league', {})
+        
+        home_team = teams.get('home', {}).get('name', 'Bilinmiyor')
+        away_team = teams.get('away', {}).get('name', 'Bilinmiyor')
+        league_name = league.get('name', 'Bilinmiyor')
+        
+        # Maç saati
+        match_timestamp = fixture.get('timestamp', 0)
+        if match_timestamp:
+            utc_time = datetime.fromtimestamp(match_timestamp, tz=pytz.UTC)
+            local_tz = pytz.timezone(timezone)
+            local_time = utc_time.astimezone(local_tz)
+            time_str = local_time.strftime('%H:%M')
+            
+            # Kaç saat sonra başlayacak
+            now = datetime.now(tz=local_tz)
+            time_diff = local_time - now
+            hours_until = time_diff.total_seconds() / 3600
+            
+            if hours_until < 1:
+                minutes_until = int((hours_until * 60))
+                countdown = f"{minutes_until} dakika sonra"
+                urgency_color = "#ff6b6b"
+            elif hours_until < 2:
+                countdown = f"{hours_until:.1f} saat sonra"
+                urgency_color = "#feca57"
+            else:
+                countdown = f"{hours_until:.0f} saat sonra"
+                urgency_color = "#48dbfb"
+        else:
+            time_str = "TBD"
+            countdown = "Saat belirsiz"
+            urgency_color = "#95a5a6"
+        
+        # Yaklaşan maç kartı
+        with st.container():
+            col1, col2, col3, col4 = st.columns([3, 2, 3, 2])
+            
+            with col1:
+                st.markdown(f"**🏠 {home_team}**")
+            
+            with col2:
+                st.markdown(f"""
+                <div style="text-align: center; color: {urgency_color}; font-weight: bold;">
+                    ⚽ VS
+                </div>
+                """, unsafe_allow_html=True)
+            
+            with col3:
+                st.markdown(f"**✈️ {away_team}**")
+            
+            with col4:
+                st.markdown(f"""
+                <div style="text-align: center; color: {urgency_color};">
+                    🕐 {time_str}<br>
+                    <small>{countdown}</small>
+                </div>
+                """, unsafe_allow_html=True)
+        
+        # Lig bilgisi
+        st.caption(f"🏆 {league_name}")
+        st.markdown("---")
+        
+    except Exception as e:
+        st.error(f"Yaklaşan maç kartı gösterilirken hata: {e}")
 
 def display_coaches_management():
     """Antrenör yönetimi sayfası"""
