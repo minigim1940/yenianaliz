@@ -3468,47 +3468,39 @@ def display_tracked_live_match_card(match):
         status_short = fixture.get('status', {}).get('short', 'NS')
         status_long = fixture.get('status', {}).get('long', 'Başlamamış')
         
-        # Özel takip kartı (vurgulanmış)
-        st.markdown(f"""
-        <div style="
-            border: 3px solid #ff6b6b; 
-            background: linear-gradient(135deg, #ff6b6b20 0%, #feca5720 100%);
-            padding: 20px; 
-            margin: 15px 0; 
-            border-radius: 12px;
-            box-shadow: 0 4px 20px rgba(255, 107, 107, 0.3);
-            animation: pulse 2s infinite;
-        ">
-            <div style="display: flex; align-items: center; justify-content: space-between;">
-                <div style="display: flex; align-items: center; gap: 15px;">
-                    <div style="background: #ff6b6b; color: white; padding: 5px 10px; border-radius: 20px; font-size: 0.8em; font-weight: bold;">
-                        📌 TAKİP EDİLİYOR
-                    </div>
-                </div>
-                <div style="text-align: right; color: #ff6b6b; font-weight: bold;">
-                    🔴 CANLI
-                </div>
-            </div>
-            
-            <div style="margin: 15px 0; text-align: center;">
-                <h2 style="margin: 5px 0; color: #333;">
-                    {home_team} <span style="color: #ff6b6b; font-size: 1.5em;">{home_score} - {away_score}</span> {away_team}
-                </h2>
-                <p style="margin: 5px 0; color: #666;">🏆 {league_name}</p>
-                <p style="margin: 0; color: #ff6b6b; font-weight: bold; font-size: 1.1em;">
-                    ⏱️ {minute}. dakika | {status_long}
-                </p>
-            </div>
-        </div>
-        
-        <style>
-        @keyframes pulse {{
-            0% {{ box-shadow: 0 4px 20px rgba(255, 107, 107, 0.3); }}
-            50% {{ box-shadow: 0 4px 30px rgba(255, 107, 107, 0.6); }}
-            100% {{ box-shadow: 0 4px 20px rgba(255, 107, 107, 0.3); }}
-        }}
-        </style>
+        # Basit ve güvenli takip kartı
+        st.markdown("""
+        <div style="border: 3px solid #ff6b6b; background: #fff5f5; padding: 15px; margin: 10px 0; border-radius: 8px;">
         """, unsafe_allow_html=True)
+        
+        # Takip durumu badge
+        st.markdown("**📌 TAKİP EDİLİYOR** 🔴 **CANLI**", unsafe_allow_html=False)
+        
+        # Skor gösterimi
+        col1, col2, col3 = st.columns([3, 2, 3])
+        
+        with col1:
+            st.markdown(f"**🏠 {home_team}**")
+            if home_logo:
+                st.image(home_logo, width=40)
+        
+        with col2:
+            st.markdown(f"""
+            <div style="text-align: center; background: #ff6b6b; color: white; padding: 10px; border-radius: 8px; margin: 5px 0;">
+                <h3 style="margin: 0; color: white;">{home_score} - {away_score}</h3>
+                <p style="margin: 0; color: white; font-size: 0.9em;">{minute}. dakika</p>
+            </div>
+            """, unsafe_allow_html=True)
+        
+        with col3:
+            st.markdown(f"**✈️ {away_team}**")
+            if away_logo:
+                st.image(away_logo, width=40)
+        
+        # Lig bilgisi
+        st.caption(f"🏆 {league_name}")
+        
+        st.markdown("</div>", unsafe_allow_html=True)
         
         # Ek canlı bilgiler (sadece takip edilenler için)
         if status_short in ['1H', '2H', 'ET', 'LIVE']:
