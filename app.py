@@ -2483,6 +2483,11 @@ def analyze_and_display(team_a_data: Dict, team_b_data: Dict, fixture_id: int, m
                 away_score = goals.get('away', 0) or 0
                 minute = fixture_status.get('elapsed', 0)
                 
+                # Gol kontrolü
+                status_short = fixture_status.get('short', 'NS')
+                if status_short in ['1H', '2H', 'ET', 'LIVE']:
+                    goal_scored = check_goal_notification(fixture_id, home_score, away_score, team_a_data['name'], team_b_data['name'])
+                
                 st.markdown(f"""
                 <div style="background: linear-gradient(135deg, #ff4444 0%, #cc0000 100%); 
                            padding: 15px; border-radius: 10px; margin: 10px 0; text-align: center;">
@@ -3644,6 +3649,76 @@ def display_live_matches():
         st.info("💡 Alternatif kaynak deneniyor...")
         display_fallback_live_matches()
 
+def check_goal_notification(fixture_id, home_score, away_score, home_team, away_team):
+    """Gol atıldığında büyük bildirim göster"""
+    # Session state'te önceki skorları sakla
+    score_key = f"score_{fixture_id}"
+    
+    if score_key not in st.session_state:
+        # İlk kez görüyoruz, skoru kaydet
+        st.session_state[score_key] = {'home': home_score, 'away': away_score, 'total': home_score + away_score}
+        return False
+    
+    previous_scores = st.session_state[score_key]
+    current_total = home_score + away_score
+    previous_total = previous_scores['total']
+    
+    # Gol atıldı mı kontrol et
+    if current_total > previous_total:
+        # Hangi takım gol attı?
+        goal_scorer = ""
+        if home_score > previous_scores['home']:
+            goal_scorer = home_team
+        elif away_score > previous_scores['away']:
+            goal_scorer = away_team
+        
+        # Büyük gol bildirimi göster
+        st.markdown(f"""
+        <div style="
+            background: linear-gradient(135deg, #ff6b6b 0%, #4ecdc4 100%);
+            padding: 30px; 
+            border-radius: 20px; 
+            margin: 20px 0; 
+            text-align: center;
+            border: 5px solid #fff;
+            box-shadow: 0 0 30px rgba(255, 107, 107, 0.5);
+            animation: goalPulse 3s ease-in-out;
+        ">
+            <style>
+                @keyframes goalPulse {{
+                    0% {{ transform: scale(0.9); opacity: 0.7; }}
+                    50% {{ transform: scale(1.1); opacity: 1; }}
+                    100% {{ transform: scale(1); opacity: 1; }}
+                }}
+            </style>
+            <h1 style="color: white; margin: 0; font-size: 4em; text-shadow: 2px 2px 4px rgba(0,0,0,0.5);">
+                ⚽ GOL! ⚽
+            </h1>
+            <h2 style="color: white; margin: 10px 0; font-size: 2.5em; text-shadow: 2px 2px 4px rgba(0,0,0,0.5);">
+                {goal_scorer}
+            </h2>
+            <h1 style="color: white; margin: 20px 0; font-size: 5em; text-shadow: 2px 2px 4px rgba(0,0,0,0.5);">
+                {home_score} - {away_score}
+            </h1>
+            <p style="color: white; margin: 0; font-size: 1.5em; text-shadow: 1px 1px 2px rgba(0,0,0,0.5);">
+                🎉 TOPLAM {current_total} GOL 🎉
+            </p>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        # Skorları güncelle
+        st.session_state[score_key] = {'home': home_score, 'away': away_score, 'total': current_total}
+        
+        # 3 saniye bekle (animasyon süresi)
+        import time
+        time.sleep(3)
+        
+        return True
+    else:
+        # Skor değişmedi, sadece güncelle
+        st.session_state[score_key] = {'home': home_score, 'away': away_score, 'total': current_total}
+        return False
+
 def display_live_match_card(match):
     """Gelişmiş canlı maç kartını göster"""
     try:
@@ -3683,6 +3758,11 @@ def display_live_match_card(match):
             'PEN': 'Penaltılarda Bitti',
             'LIVE': 'Canlı'
         }.get(status_short, status_long)
+        
+        # Gol kontrolü - Sadece canlı maçlarda
+        fixture_id = fixture.get('id')
+        if status_short in ['1H', '2H', 'ET', 'LIVE'] and fixture_id:
+            goal_scored = check_goal_notification(fixture_id, home_score, away_score, home_team, away_team)
         
         # Kart stilini belirle
         if status_short in ['1H', '2H', 'ET', 'LIVE']:
@@ -3820,6 +3900,11 @@ def display_tracked_live_match_card(match):
         # Maç durumu
         status_short = fixture.get('status', {}).get('short', 'NS')
         status_long = fixture.get('status', {}).get('long', 'Başlamamış')
+        
+        # Gol kontrolü - Sadece canlı maçlarda
+        fixture_id = fixture.get('id')
+        if status_short in ['1H', '2H', 'ET', 'LIVE'] and fixture_id:
+            goal_scored = check_goal_notification(fixture_id, home_score, away_score, home_team, away_team)
         
         # Basit ve güvenli takip kartı
         st.markdown("""
