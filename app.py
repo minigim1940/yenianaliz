@@ -1418,11 +1418,14 @@ def build_home_view(model_params):
                                     error = None
                                     st.success("✅ Alternatif arama ile maç bulundu!")
                             
-                            if not error and next_fixture:
-                                home_team = next_fixture['teams']['home']
-                                away_team = next_fixture['teams']['away']
-                                fixture_id = next_fixture['fixture']['id']
-                                st.info(f"📅 **Maç bulundu:** {home_team['name']} vs {away_team['name']}")
+                            if not error and next_fixture and next_fixture.get('teams'):
+                                home_team = next_fixture['teams'].get('home', {})
+                                away_team = next_fixture['teams'].get('away', {})
+                                fixture_id = next_fixture.get('fixture', {}).get('id')
+                                if home_team.get('name') and away_team.get('name'):
+                                    st.info(f"📅 **Maç bulundu:** {home_team['name']} vs {away_team['name']}")
+                                else:
+                                    st.error("❌ Takım bilgileri eksik")
                                 league_id_from_fixture = next_fixture.get('league', {}).get('id')
                                 season_from_fixture = next_fixture.get('league', {}).get('season')
                                 analyze_and_display(home_team, away_team, fixture_id, model_params,
@@ -1440,10 +1443,19 @@ def build_home_view(model_params):
                                 st.success(f"✅ **{len(fixtures)} adet yaklaşan maç bulundu!**")
                                 
                                 for idx, fixture in enumerate(fixtures, 1):
-                                    with st.expander(f"📅 Maç {idx}: {fixture['teams']['home']['name']} vs {fixture['teams']['away']['name']}", expanded=(idx==1)):
-                                        home_team = fixture['teams']['home']
-                                        away_team = fixture['teams']['away']
-                                        fixture_id = fixture['fixture']['id']
+                                    if not fixture.get('teams'):
+                                        st.warning(f"⚠️ Maç {idx}: Takım bilgisi eksik")
+                                        continue
+                                    
+                                    home_team = fixture['teams'].get('home', {})
+                                    away_team = fixture['teams'].get('away', {})
+                                    
+                                    if not home_team.get('name') or not away_team.get('name'):
+                                        st.warning(f"⚠️ Maç {idx}: Takım isimleri eksik")
+                                        continue
+                                    
+                                    with st.expander(f"📅 Maç {idx}: {home_team['name']} vs {away_team['name']}", expanded=(idx==1)):
+                                        fixture_id = fixture.get('fixture', {}).get('id')
                                         
                                         # Maç tarihi göster
                                         fixture_date = fixture.get('fixture', {}).get('date', '')

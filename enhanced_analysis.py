@@ -175,15 +175,28 @@ def display_league_statistics(api_key: str, base_url: str):
 
 def display_enhanced_fixture_card(api_key: str, base_url: str, fixture: Dict[str, Any]):
     """Gelişmiş maç kartı görünümü"""
-    with st.expander(f"🏟️ {fixture['teams']['home']['name']} vs {fixture['teams']['away']['name']}", expanded=False):
+    
+    # Veri yapısı kontrolü
+    if not fixture.get('teams'):
+        st.error("❌ Maç verisi eksik: teams bilgisi bulunamadı")
+        return
+    
+    home_team = fixture['teams'].get('home', {})
+    away_team = fixture['teams'].get('away', {})
+    
+    if not home_team.get('name') or not away_team.get('name'):
+        st.error("❌ Takım isimleri bulunamadı")
+        return
+    
+    with st.expander(f"🏟️ {home_team['name']} vs {away_team['name']}", expanded=False):
         
         # Temel maç bilgileri
         col1, col2, col3 = st.columns([2, 1, 2])
         
         with col1:
-            st.markdown(f"### {fixture['teams']['home']['name']}")
-            if fixture['teams']['home'].get('logo'):
-                st.image(fixture['teams']['home']['logo'], width=80)
+            st.markdown(f"### {home_team['name']}")
+            if home_team.get('logo'):
+                st.image(home_team['logo'], width=80)
                 
         with col2:
             match_time = datetime.fromisoformat(fixture['fixture']['date'].replace('Z', '+00:00'))
@@ -191,9 +204,9 @@ def display_enhanced_fixture_card(api_key: str, base_url: str, fixture: Dict[str
             st.markdown(f"{fixture['league']['name']}")
             
         with col3:
-            st.markdown(f"### {fixture['teams']['away']['name']}")
-            if fixture['teams']['away'].get('logo'):
-                st.image(fixture['teams']['away']['logo'], width=80)
+            st.markdown(f"### {away_team['name']}")
+            if away_team.get('logo'):
+                st.image(away_team['logo'], width=80)
         
         # Detaylı analiz butonları
         tab1, tab2, tab3, tab4 = st.tabs(["🔮 API Tahmini", "💰 Bahis Oranları", "👥 Kadro", "📊 İstatistikler"])
