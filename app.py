@@ -1471,10 +1471,6 @@ def build_home_view(model_params):
                 else:
                     st.error(f"❌ '{team_query}' takımı bulunamadı.")
                     st.info("💡 **İpucu:** Takım adını tam olarak yazmaya çalışın veya farklı dillerde deneyin.")
-                        else:
-                            st.warning(f"{team_data['name']} takımının programda görünen bir sonraki maçı bulunamadı.")
-                else:
-                    st.error(f"'{team_query}' adında bir takım bulunamadı.")
         else:
             st.warning("Lütfen bir takım adı girin.")
 
