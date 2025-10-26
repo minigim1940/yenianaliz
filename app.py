@@ -1960,8 +1960,7 @@ def main():
         config['credentials'],
         config['cookie']['name'],
         config['cookie']['key'],
-        config['cookie']['expiry_days'],
-        auto_hash=False  # Hash'leri önceden yaptık, her seferinde tekrar hash'leme
+        config['cookie']['expiry_days']
     )
 
     admin_users = config.get('admin_users', []) if isinstance(config, dict) else []
