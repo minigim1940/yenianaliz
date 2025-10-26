@@ -2463,8 +2463,8 @@ def analyze_and_display(team_a_data: Dict, team_b_data: Dict, fixture_id: int, m
                 
                 with col2:
                     refresh_interval = st.selectbox(
-                        "Aralık", [10, 15, 30, 60], 
-                        index=0, format_func=lambda x: f"{x}sn",
+                        "Aralık", [2, 5, 10, 15, 30, 60], 
+                        index=1, format_func=lambda x: f"{x}sn",  # Default 5 saniye
                         key=f"refresh_interval_{fixture_id}"
                     )
                 
@@ -3459,8 +3459,8 @@ def display_live_matches():
         # Yenileme aralığı seçimi
         refresh_interval = st.selectbox(
             "📱 Aralık",
-            options=[5, 10, 15, 30, 60],
-            index=0,  # Default 5 saniye
+            options=[2, 5, 10, 15, 30, 60],
+            index=1,  # Default 5 saniye
             format_func=lambda x: f"{x}sn",
             key="refresh_interval_live"
         )
