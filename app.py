@@ -1255,18 +1255,36 @@ def display_ai_predictions_tab(fixture_id: int):
                         col1, col2, col3 = st.columns(3)
                         
                         with col1:
-                            home_percent = percent.get('home', 0)
-                            st.metric("🏠 Ev Sahibi Galibiyeti", f"{home_percent}%", 
+                            home_percent_raw = percent.get('home', 0)
+                            # String'i float'a çevir
+                            try:
+                                home_percent = float(home_percent_raw) if home_percent_raw else 0
+                            except (ValueError, TypeError):
+                                home_percent = 0
+                            
+                            st.metric("🏠 Ev Sahibi Galibiyeti", f"{home_percent:.1f}%", 
                                      delta=f"{home_percent-33.33:.1f}% ortalama üstü" if home_percent > 33.33 else None)
                         
                         with col2:
-                            draw_percent = percent.get('draw', 0)
-                            st.metric("🤝 Beraberlik", f"{draw_percent}%",
+                            draw_percent_raw = percent.get('draw', 0)
+                            # String'i float'a çevir
+                            try:
+                                draw_percent = float(draw_percent_raw) if draw_percent_raw else 0
+                            except (ValueError, TypeError):
+                                draw_percent = 0
+                            
+                            st.metric("🤝 Beraberlik", f"{draw_percent:.1f}%",
                                      delta=f"{draw_percent-33.33:.1f}% ortalama üstü" if draw_percent > 33.33 else None)
                         
                         with col3:
-                            away_percent = percent.get('away', 0)
-                            st.metric("✈️ Deplasman Galibiyeti", f"{away_percent}%",
+                            away_percent_raw = percent.get('away', 0)
+                            # String'i float'a çevir
+                            try:
+                                away_percent = float(away_percent_raw) if away_percent_raw else 0
+                            except (ValueError, TypeError):
+                                away_percent = 0
+                            
+                            st.metric("✈️ Deplasman Galibiyeti", f"{away_percent:.1f}%",
                                      delta=f"{away_percent-33.33:.1f}% ortalama üstü" if away_percent > 33.33 else None)
                     
                     # Gol tahminleri
