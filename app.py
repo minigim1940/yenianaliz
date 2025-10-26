@@ -764,20 +764,21 @@ def display_injuries_tab(fixture_id: int, team_names: Dict, team_ids: Dict, leag
                     for p in team_a_inj:
                         player_id = p['player']['id']
                         player_stats_data, _ = api_utils.get_player_stats(API_KEY, BASE_URL, player_id, season)
-                    stats_str = analysis_logic.process_player_stats(player_stats_data) or ""
-                    st.warning(f"**{p['player']['name']}** - {p['player']['reason']}{stats_str}")
-            else: 
-                st.write("Eksik yok.")
-        with c2:
-            st.markdown(f"**{team_names['b']}**")
-            if team_b_inj: 
-                for p in team_b_inj:
-                    player_id = p['player']['id']
-                    player_stats_data, _ = api_utils.get_player_stats(API_KEY, BASE_URL, player_id, season)
-                    stats_str = analysis_logic.process_player_stats(player_stats_data) or ""
-                    st.warning(f"**{p['player']['name']}** - {p['player']['reason']}{stats_str}")
-            else: 
-                st.write("Eksik yok.")
+                        stats_str = analysis_logic.process_player_stats(player_stats_data) or ""
+                        st.warning(f"**{p['player']['name']}** - {p['player']['reason']}{stats_str}")
+                else: 
+                    st.write("Eksik yok.")
+                    
+            with c2:
+                st.markdown(f"**{team_names['b']}**")
+                if team_b_inj: 
+                    for p in team_b_inj:
+                        player_id = p['player']['id']
+                        player_stats_data, _ = api_utils.get_player_stats(API_KEY, BASE_URL, player_id, season)
+                        stats_str = analysis_logic.process_player_stats(player_stats_data) or ""
+                        st.warning(f"**{p['player']['name']}** - {p['player']['reason']}{stats_str}")
+                else: 
+                    st.write("Eksik yok.")
 
 def display_standings_tab(league_info: Dict, team_names: Dict):
     st.subheader("🏆 Lig Puan Durumu")
