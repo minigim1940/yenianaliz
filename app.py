@@ -4686,13 +4686,22 @@ def main():
             remaining_requests = max(0, user_limit - current_usage.get('count', 0))
             
             # Tier badge
-            tier_color = "green" if user_tier == 'ücretli' else "blue"
-            tier_icon = "💎" if user_tier == 'ücretli' else "🆓"
-            st.sidebar.info(f"{tier_icon} **{user_tier.capitalize()} Üyelik**")
+            if username == 'dev_user':
+                st.sidebar.success("🔥 **Developer Mode** - Sınırsız Erişim")
+            else:
+                tier_color = "green" if user_tier == 'ücretli' else "blue"
+                tier_icon = "💎" if user_tier == 'ücretli' else "🆓"
+                st.sidebar.info(f"{tier_icon} **{user_tier.capitalize()} Üyelik**")
             
             # API kullanım progress bar
-            usage_percentage = (current_usage.get('count', 0) / user_limit * 100) if user_limit > 0 else 0
-            st.sidebar.progress(usage_percentage / 100, text=f"API Kullanımı: {current_usage.get('count', 0)}/{user_limit}")
+            # Dev user için özel progress bar
+            if username == 'dev_user':
+                st.sidebar.progress(0.01, text=f"🔥 Developer Mode: Sınırsız API")
+            else:
+                usage_percentage = (current_usage.get('count', 0) / user_limit * 100) if user_limit > 0 else 0
+                # Progress bar 100% üzerini engellemek için
+                progress_value = min(usage_percentage / 100, 1.0)
+                st.sidebar.progress(progress_value, text=f"API Kullanımı: {current_usage.get('count', 0)}/{user_limit}")
             
         st.sidebar.markdown("---")
         

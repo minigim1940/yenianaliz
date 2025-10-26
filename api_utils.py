@@ -43,7 +43,9 @@ except ImportError:
 USAGE_FILE = 'user_usage.json'
 TIER_LIMITS = {
     'ücretli': 1500,
-    'ücretsiz': 150
+    'ücretsiz': 150,
+    'admin': 999999,
+    'dev': 999999
 }
 
 # Admin action log is stored inside the usage file under the key '_admin_log' as a list of entries
@@ -51,6 +53,13 @@ ADMIN_LOG_KEY = '_admin_log'
 
 def get_api_limit_for_user(tier: str) -> int:
     """Kullanıcının seviyesine göre API limitini döner."""
+    # Development user için sınırsız erişim
+    try:
+        if HAS_STREAMLIT and hasattr(st, 'session_state') and st.session_state.get('username') == 'dev_user':
+            return 999999
+    except Exception:
+        pass
+    
     # Varsayılan olarak bilinmeyen bir tier için ücretsiz tier limiti uygulanır
     return TIER_LIMITS.get(tier, TIER_LIMITS['ücretsiz'])
 
@@ -424,6 +433,10 @@ def check_api_limit() -> Tuple[bool, Optional[str]]:
     username = st.session_state.get('username')
     admin_users = st.session_state.get('admin_users', [])
     
+    # Development user için sınırsız API erişimi
+    if username == 'dev_user':
+        return True, None
+    
     # Admin kullanıcılar için sınırsız erişim
     if username and username in admin_users:
         return True, None
@@ -467,6 +480,10 @@ def increment_api_usage() -> None:
     username = st.session_state.get('username')
     admin_users = st.session_state.get('admin_users', [])
     
+    # Development user için sayaç artırma - sınırsız kullanım
+    if username == 'dev_user':
+        return
+    
     # Admin için de sayacı artır ama limit kontrolü yapma
     if username:
         # Önce mevcut kullanımı al (tarih kontrolü yapılacak)
@@ -483,6 +500,13 @@ def increment_api_usage() -> None:
         print(f"[API USAGE] {username}: Günlük={user_usage['count']}, Aylık={user_usage['monthly_count']}")
 
 def make_api_request(api_key: str, base_url: str, endpoint: str, params: Dict[str, Any], skip_limit: bool = False) -> Tuple[Optional[Any], Optional[str]]:
+    # Development user için otomatik skip_limit
+    try:
+        if HAS_STREAMLIT and hasattr(st, 'session_state') and st.session_state.get('username') == 'dev_user':
+            skip_limit = True
+    except Exception:
+        pass
+    
     if not skip_limit:
         can_request, error_message = check_api_limit()
         if not can_request:
