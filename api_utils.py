@@ -939,17 +939,50 @@ def get_fixtures_by_date(api_key: str, base_url: str, selected_league_ids: List[
     final_error = "\n".join(error_messages) if error_messages else None
     return sorted(all_fixtures, key=lambda x: (x['league_name'], x['time'])), final_error
 
-def get_team_id(api_key: str, base_url: str, team_input: str) -> Optional[Dict[str, Any]]:
-    response, error = make_api_request(api_key, base_url, "teams", {'search': team_input} if not team_input.isdigit() else {'id': team_input})
-    if error:
-        st.sidebar.error(error); return None
-    if response:
+def get_team_id(api_key: str, base_url: str, team_input: str, season: Optional[int] = None) -> Optional[Dict[str, Any]]:
+    """
+    Modern team search with enhanced error handling and season support
+    """
+    # Initialize API if not already done
+    from football_api_v3 import initialize_api, APIStatus
+    
+    try:
+        api = initialize_api(api_key)
+        
+        # Determine current season if not provided
+        if not season:
+            season = api.get_current_season()
+        
+        # Search by ID if input is numeric, otherwise search by name
+        if team_input.isdigit():
+            result = api.get_team_by_id(int(team_input), season)
+        else:
+            result = api.search_teams(team_input, season=season)
+        
+        # Handle API response
+        if result.status == APIStatus.ERROR:
+            if STREAMLIT_AVAILABLE:
+                st.sidebar.error(f"❌ API Hatası: {result.error}")
+            return None
+        
+        if result.status == APIStatus.RATE_LIMIT:
+            if STREAMLIT_AVAILABLE:
+                st.sidebar.error("⚠️ API rate limit aşıldı. Lütfen bekleyip tekrar deneyin.")
+            return None
+        
+        if not result.data or len(result.data) == 0:
+            if STREAMLIT_AVAILABLE:
+                st.sidebar.warning(f"⚠️ '{team_input}' takımı bulunamadı.")
+            return None
+        
+        teams = result.data
+        
         # Eğer birden fazla sonuç varsa, popüler takımları üste getir
-        if len(response) > 1:
-            # Popüler takım ID'leri (app.py'den)
+        if len(teams) > 1:
+            # Popüler takım ID'leri
             popular_teams = [
                 645, 646, 644, 643, 3569,  # Türkiye
-                33, 34, 40, 42, 47, 49, 50,  # İngiltere
+                33, 34, 40, 42, 47, 49, 50,  # İngiltere  
                 529, 530, 531, 532, 533,  # İspanya
                 489, 487, 488, 492, 496, 500, 505,  # İtalya
                 157, 165, 173, 168, 172,  # Almanya
@@ -963,12 +996,26 @@ def get_team_id(api_key: str, base_url: str, team_input: str) -> Optional[Dict[s
                 return 999
             
             # Popülerliğe göre sırala
-            response.sort(key=get_priority)
+            teams.sort(key=get_priority)
         
-        team = response[0]['team']
-        st.sidebar.success(f"✅ Bulunan: {team['name']} ({team['id']})")
-        return {'id': team['id'], 'name': team['name'], 'logo': team.get('logo')}
-    st.sidebar.error(f"❌ Takım bulunamadı: '{team_input}'"); return None
+        team_data = teams[0]['team']
+        
+        if STREAMLIT_AVAILABLE:
+            st.sidebar.success(f"✅ Bulunan: {team_data['name']} ({team_data['id']})")
+        
+        return {
+            'id': team_data['id'], 
+            'name': team_data['name'], 
+            'logo': team_data.get('logo'),
+            'country': team_data.get('country'),
+            'founded': team_data.get('founded'),
+            'venue_name': team_data.get('venue', {}).get('name') if team_data.get('venue') else None
+        }
+        
+    except Exception as e:
+        if STREAMLIT_AVAILABLE:
+            st.sidebar.error(f"❌ Takım arama hatası: {str(e)}")
+        return None
 
 @st.cache_data(ttl=18000)
 def get_team_injuries(api_key: str, base_url: str, team_id: int, fixture_id: Optional[int] = None) -> Tuple[Optional[List[Dict[str, Any]]], Optional[str]]:

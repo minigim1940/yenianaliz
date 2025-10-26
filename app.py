@@ -60,6 +60,7 @@ from password_manager import change_password, change_email
 import base64
 import os
 from enhanced_analysis import display_enhanced_match_analysis
+from enhanced_displays import display_comprehensive_team_analysis
 
 
 def get_logo_base64():
@@ -1399,10 +1400,34 @@ def build_home_view(model_params):
     
     if st.button("🔍 Takımı Ara", use_container_width=True):
         if team_query:
-            with st.spinner(f"'{team_query}' takımı aranıyor..."):
-                team_data = api_utils.get_team_id(API_KEY, BASE_URL, team_query)
-                if team_data:
+            # Initialize modern API system
+            from football_api_v3 import initialize_api
+            from professional_analysis import initialize_analysis_engine
+            
+            try:
+                api_v3 = initialize_api(API_KEY)
+                engine = initialize_analysis_engine(api_v3)
+                
+                # Get comprehensive team analysis
+                analysis = engine.comprehensive_team_analysis(team_query)
+                
+                if analysis:
+                    team_data = analysis['team']
                     st.success(f"✅ Takım bulundu: **{team_data['name']}**")
+                    
+                    # Display comprehensive team information
+                    display_comprehensive_team_analysis(analysis)
+                    
+                else:
+                    st.error(f"❌ '{team_query}' takımı bulunamadı veya analiz yapılamadı")
+                    
+            except Exception as e:
+                st.error(f"❌ Sistem hatası: {str(e)}")
+                # Fallback to old system
+                with st.spinner(f"'{team_query}' takımı aranıyor..."):
+                    team_data = api_utils.get_team_id(API_KEY, BASE_URL, team_query)
+                    if team_data:
+                        st.success(f"✅ Takım bulundu: **{team_data['name']}**")
                     
                     if search_type == "Hızlı Arama (1 maç)":
                         # Eski sistem - tek maç

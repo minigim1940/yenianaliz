@@ -66,3 +66,8 @@ isort>=5.12.0
 # Streamlit Web Framework
 streamlit>=1.28.0
 streamlit-authenticator>=0.2.3
+
+# Data Science & Visualization
+plotly>=5.17.0
+pandas>=2.1.0
+numpy>=1.24.0
