@@ -5440,7 +5440,20 @@ def display_professional_analysis():
         from football_api_v3 import APIFootballV3, AdvancedAnalytics, initialize_api
         
         if 'pro_analysis_api' not in st.session_state:
-            api_key = st.secrets.get('API_KEY') or '67db34589730acc0e2c84de228e29d99'
+            # API anahtarını farklı yollarla dene
+            api_key = None
+            try:
+                api_key = st.secrets["API_KEY"]
+            except:
+                try:
+                    api_key = st.secrets.get("API_KEY")
+                except:
+                    # Fallback API key
+                    api_key = "6336fb21e17dea87880d3b133132a13f"
+            
+            if not api_key:
+                api_key = "6336fb21e17dea87880d3b133132a13f"
+            
             st.session_state.pro_analysis_api = APIFootballV3(api_key)
             st.session_state.advanced_analytics = AdvancedAnalytics(st.session_state.pro_analysis_api)
         
@@ -5449,7 +5462,19 @@ def display_professional_analysis():
         
     except Exception as e:
         st.error(f"API başlatma hatası: {e}")
-        return
+        
+        # Fallback: Hata durumunda da API'yi başlat
+        try:
+            from football_api_v3 import APIFootballV3, AdvancedAnalytics
+            fallback_api_key = "6336fb21e17dea87880d3b133132a13f"
+            st.session_state.pro_analysis_api = APIFootballV3(fallback_api_key)
+            st.session_state.advanced_analytics = AdvancedAnalytics(st.session_state.pro_analysis_api)
+            api = st.session_state.pro_analysis_api
+            analytics = st.session_state.advanced_analytics
+            st.warning("⚠️ Fallback API anahtarı kullanılıyor.")
+        except Exception as e2:
+            st.error(f"Fallback API başlatma da başarısız: {e2}")
+            return
     
     # Tab sistemı
     tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
@@ -5601,28 +5626,57 @@ def display_professional_analysis():
         col1, col2, col3 = st.columns(3)
         with col1:
             if st.button("💰 Maç Oranları", use_container_width=True):
-                odds_result = api.get_fixture_odds(fixture_id_odds)
-                if odds_result.status.value == "success":
-                    st.success("Bahis oranları alındı!")
-                    # Oranları göster
-                else:
-                    st.error("Bahis oranları alınamadı.")
+                try:
+                    odds_result = api.get_fixture_odds(fixture_id_odds)
+                    if hasattr(odds_result.status, 'value'):
+                        success = odds_result.status.value == "success"
+                    else:
+                        success = str(odds_result.status).lower() == "success"
+                    
+                    if success:
+                        st.success("Bahis oranları alındı!")
+                        if odds_result.data:
+                            st.json(odds_result.data[:2])  # İlk 2 sonucu göster
+                    else:
+                        st.error(f"Bahis oranları alınamadı: {odds_result.error or 'Bilinmeyen hata'}")
+                except Exception as e:
+                    st.error(f"API çağrısında hata: {e}")
         
         with col2:
             if st.button("⚽ Over/Under 2.5", use_container_width=True):
-                ou_result = api.get_over_under_odds(fixture_id_odds, 2.5)
-                if ou_result.status.value == "success":
-                    st.success("Over/Under oranları alındı!")
-                else:
-                    st.error("Over/Under oranları alınamadı.")
+                try:
+                    ou_result = api.get_over_under_odds(fixture_id_odds, 2.5)
+                    if hasattr(ou_result.status, 'value'):
+                        success = ou_result.status.value == "success"
+                    else:
+                        success = str(ou_result.status).lower() == "success"
+                    
+                    if success:
+                        st.success("Over/Under oranları alındı!")
+                        if ou_result.data:
+                            st.json(ou_result.data[:2])
+                    else:
+                        st.error(f"Over/Under oranları alınamadı: {ou_result.error or 'Bilinmeyen hata'}")
+                except Exception as e:
+                    st.error(f"API çağrısında hata: {e}")
         
         with col3:
             if st.button("🎯 BTTS Oranları", use_container_width=True):
-                btts_result = api.get_both_teams_score_odds(fixture_id_odds)
-                if btts_result.status.value == "success":
-                    st.success("BTTS oranları alındı!")
-                else:
-                    st.error("BTTS oranları alınamadı.")
+                try:
+                    btts_result = api.get_both_teams_score_odds(fixture_id_odds)
+                    if hasattr(btts_result.status, 'value'):
+                        success = btts_result.status.value == "success"
+                    else:
+                        success = str(btts_result.status).lower() == "success"
+                    
+                    if success:
+                        st.success("BTTS oranları alındı!")
+                        if btts_result.data:
+                            st.json(btts_result.data[:2])
+                    else:
+                        st.error(f"BTTS oranları alınamadı: {btts_result.error or 'Bilinmeyen hata'}")
+                except Exception as e:
+                    st.error(f"API çağrısında hata: {e}")
     
     with tab4:
         st.markdown("## 🏟️ Saha & Hava Durumu Analizi")
@@ -5643,12 +5697,21 @@ def display_professional_analysis():
         with col2:
             team_id_venue = st.number_input("Takım ID", min_value=1, value=33, key="venue_team_id")
             if st.button("🏠 Takım Stadyumu", use_container_width=True):
-                venue_result = api.get_team_venue(team_id_venue)
-                if venue_result.status.value == "success":
-                    st.success("Stadyum bilgileri alındı!")
-                    st.json(venue_result.data)
-                else:
-                    st.error("Stadyum bilgileri alınamadı.")
+                try:
+                    venue_result = api.get_team_venue(team_id_venue)
+                    if hasattr(venue_result.status, 'value'):
+                        success = venue_result.status.value == "success"
+                    else:
+                        success = str(venue_result.status).lower() == "success"
+                    
+                    if success:
+                        st.success("Stadyum bilgileri alındı!")
+                        if venue_result.data:
+                            st.json(venue_result.data)
+                    else:
+                        st.error(f"Stadyum bilgileri alınamadı: {venue_result.error or 'Bilinmeyen hata'}")
+                except Exception as e:
+                    st.error(f"API çağrısında hata: {e}")
     
     with tab5:
         st.markdown("## 👥 Oyuncu Etkisi Analizi")
@@ -5662,13 +5725,22 @@ def display_professional_analysis():
             st.json(lineup_analysis)
             
             # Gerçek lineups API'sini çağır
-            lineups_result = api.get_fixture_lineups(lineup_fixture_id)
-            if lineups_result.status.value == "success":
-                st.markdown("### 🔄 Gerçek Kadro Verileri")
-                st.success("Kadro verileri alındı!")
-                # Lineups verilerini göster
-            else:
-                st.warning("Henüz kadro açıklanmamış.")
+            try:
+                lineups_result = api.get_fixture_lineups(lineup_fixture_id)
+                if hasattr(lineups_result.status, 'value'):
+                    success = lineups_result.status.value == "success"
+                else:
+                    success = str(lineups_result.status).lower() == "success"
+                
+                if success:
+                    st.markdown("### 🔄 Gerçek Kadro Verileri")
+                    st.success("Kadro verileri alındı!")
+                    if lineups_result.data:
+                        st.json(lineups_result.data)
+                else:
+                    st.warning("Henüz kadro açıklanmamış.")
+            except Exception as e:
+                st.error(f"Kadro verilerinde hata: {e}")
     
     with tab6:
         st.markdown("## 🔴 Canlı Maç Zekası")
