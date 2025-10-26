@@ -1088,6 +1088,300 @@ def display_parameters_tab(params: Dict, team_names: Dict):
         st.metric("Tempo Endeksi", f"x{params.get('pace_index', 1.0):.2f}")
         st.metric("Elo Farkı", f"{params.get('elo_diff', 0):+.0f}")
 
+def display_coaches_tab(team_ids: Dict, team_names: Dict):
+    """Antrenör bilgileri tab'ı"""
+    st.subheader("👨‍💼 Takım Antrenörleri")
+    
+    try:
+        from football_api_v3 import APIFootballV3
+        api_instance = APIFootballV3(API_KEY)
+        
+        col1, col2 = st.columns(2)
+        
+        # Ev sahibi takım antrenörü
+        with col1:
+            st.markdown(f"### 🏠 {team_names['a']} Antrenörü")
+            with st.spinner("Antrenör bilgisi alınıyor..."):
+                coach_result = api_instance.get_coaches(team_id=team_ids['a'])
+                
+                if coach_result.status.value == "success" and coach_result.data:
+                    coach = coach_result.data[0] if coach_result.data else None
+                    if coach:
+                        # Antrenör fotoğrafı
+                        photo_url = coach.get('photo')
+                        if photo_url:
+                            st.image(photo_url, width=150)
+                        
+                        # Antrenör bilgileri
+                        st.markdown(f"**👤 İsim:** {coach.get('name', 'Bilinmiyor')}")
+                        st.markdown(f"**📅 Yaş:** {coach.get('age', 'N/A')}")
+                        st.markdown(f"**🌍 Uyruk:** {coach.get('nationality', 'N/A')}")
+                        
+                        birth = coach.get('birth', {})
+                        if birth:
+                            st.markdown(f"**🎂 Doğum:** {birth.get('date', 'N/A')}")
+                            st.markdown(f"**📍 Doğum Yeri:** {birth.get('place', 'N/A')}, {birth.get('country', 'N/A')}")
+                        
+                        st.markdown(f"**📏 Boy:** {coach.get('height', 'N/A')}")
+                        st.markdown(f"**⚖️ Kilo:** {coach.get('weight', 'N/A')}")
+                    else:
+                        st.info("Antrenör bilgisi bulunamadı")
+                else:
+                    st.warning("Antrenör verileri alınamadı")
+        
+        # Deplasman takım antrenörü  
+        with col2:
+            st.markdown(f"### ✈️ {team_names['b']} Antrenörü")
+            with st.spinner("Antrenör bilgisi alınıyor..."):
+                coach_result = api_instance.get_coaches(team_id=team_ids['b'])
+                
+                if coach_result.status.value == "success" and coach_result.data:
+                    coach = coach_result.data[0] if coach_result.data else None
+                    if coach:
+                        # Antrenör fotoğrafı
+                        photo_url = coach.get('photo')
+                        if photo_url:
+                            st.image(photo_url, width=150)
+                        
+                        # Antrenör bilgileri
+                        st.markdown(f"**👤 İsim:** {coach.get('name', 'Bilinmiyor')}")
+                        st.markdown(f"**📅 Yaş:** {coach.get('age', 'N/A')}")
+                        st.markdown(f"**🌍 Uyruk:** {coach.get('nationality', 'N/A')}")
+                        
+                        birth = coach.get('birth', {})
+                        if birth:
+                            st.markdown(f"**🎂 Doğum:** {birth.get('date', 'N/A')}")
+                            st.markdown(f"**📍 Doğum Yeri:** {birth.get('place', 'N/A')}, {birth.get('country', 'N/A')}")
+                        
+                        st.markdown(f"**📏 Boy:** {coach.get('height', 'N/A')}")
+                        st.markdown(f"**⚖️ Kilo:** {coach.get('weight', 'N/A')}")
+                    else:
+                        st.info("Antrenör bilgisi bulunamadı")
+                else:
+                    st.warning("Antrenör verileri alınamadı")
+    
+    except Exception as e:
+        st.error(f"Antrenör bilgileri alınırken hata oluştu: {str(e)}")
+
+def display_venue_tab(fixture_id: int, fixture_details: Optional[Dict]):
+    """Stad bilgileri tab'ı"""
+    st.subheader("🏟️ Stad Bilgileri")
+    
+    try:
+        venue_id = None
+        
+        # Fixture details'dan venue ID'yi al
+        if fixture_details:
+            venue_info = fixture_details.get('fixture', {}).get('venue', {})
+            venue_id = venue_info.get('id')
+        
+        if venue_id:
+            from football_api_v3 import APIFootballV3
+            api_instance = APIFootballV3(API_KEY)
+            
+            with st.spinner("Stad bilgileri alınıyor..."):
+                venue_result = api_instance.get_venues(venue_id=venue_id)
+                
+                if venue_result.status.value == "success" and venue_result.data:
+                    venue = venue_result.data[0] if venue_result.data else None
+                    
+                    if venue:
+                        col1, col2 = st.columns([2, 1])
+                        
+                        with col1:
+                            # Stad resmi
+                            venue_image = venue.get('image')
+                            if venue_image:
+                                st.image(venue_image, use_column_width=True)
+                            else:
+                                st.info("📷 Stad resmi mevcut değil")
+                        
+                        with col2:
+                            # Stad bilgileri
+                            st.markdown(f"### 🏟️ {venue.get('name', 'Bilinmiyor')}")
+                            st.markdown(f"**🆔 ID:** {venue.get('id', 'N/A')}")
+                            st.markdown(f"**📍 Adres:** {venue.get('address', 'N/A')}")
+                            st.markdown(f"**🏙️ Şehir:** {venue.get('city', 'N/A')}")
+                            st.markdown(f"**🌍 Ülke:** {venue.get('country', 'N/A')}")
+                            
+                            # Kapasite formatla
+                            capacity = venue.get('capacity', 0)
+                            if capacity and capacity > 0:
+                                st.markdown(f"**👥 Kapasite:** {capacity:,}")
+                            else:
+                                st.markdown(f"**👥 Kapasite:** N/A")
+                            
+                            st.markdown(f"**🌿 Zemin:** {venue.get('surface', 'N/A')}")
+                    else:
+                        st.info("Stad bilgisi bulunamadı")
+                else:
+                    st.warning("Stad verileri alınamadı")
+        else:
+            st.info("Bu maç için stad ID'si bulunamadı")
+    
+    except Exception as e:
+        st.error(f"Stad bilgileri alınırken hata oluştu: {str(e)}")
+
+def display_ai_predictions_tab(fixture_id: int):
+    """AI tahminleri tab'ı"""
+    st.subheader("🔮 Profesyonel AI Tahminleri")
+    
+    try:
+        from football_api_v3 import APIFootballV3
+        api_instance = APIFootballV3(API_KEY)
+        
+        with st.spinner("AI tahminleri alınıyor..."):
+            prediction_result = api_instance.get_predictions(fixture_id)
+            
+            if prediction_result.status.value == "success" and prediction_result.data:
+                prediction_data = prediction_result.data[0] if prediction_result.data else None
+                
+                if prediction_data:
+                    predictions = prediction_data.get('predictions', {})
+                    
+                    # Ana tahmin bilgileri
+                    st.markdown("### 🎯 Ana Tahmin")
+                    
+                    winner = predictions.get('winner', {})
+                    if winner:
+                        st.success(f"🏆 **Kazanan Tahmini:** {winner.get('name', 'Bilinmiyor')}")
+                        comment = winner.get('comment', 'Yorum mevcut değil')
+                        st.info(f"💬 **AI Analizi:** {comment}")
+                    
+                    # Yüzde tahminleri
+                    percent = predictions.get('percent', {})
+                    if percent:
+                        st.markdown("### 📊 Yüzde Tahminleri")
+                        col1, col2, col3 = st.columns(3)
+                        
+                        with col1:
+                            home_percent = percent.get('home', 0)
+                            st.metric("🏠 Ev Sahibi Galibiyeti", f"{home_percent}%", 
+                                     delta=f"{home_percent-33.33:.1f}% ortalama üstü" if home_percent > 33.33 else None)
+                        
+                        with col2:
+                            draw_percent = percent.get('draw', 0)
+                            st.metric("🤝 Beraberlik", f"{draw_percent}%",
+                                     delta=f"{draw_percent-33.33:.1f}% ortalama üstü" if draw_percent > 33.33 else None)
+                        
+                        with col3:
+                            away_percent = percent.get('away', 0)
+                            st.metric("✈️ Deplasman Galibiyeti", f"{away_percent}%",
+                                     delta=f"{away_percent-33.33:.1f}% ortalama üstü" if away_percent > 33.33 else None)
+                    
+                    # Gol tahminleri
+                    goals = predictions.get('goals', {})
+                    if goals:
+                        st.markdown("### ⚽ Gol Tahminleri")
+                        col1, col2 = st.columns(2)
+                        
+                        with col1:
+                            st.metric("🏠 Ev Sahibi Beklenen Gol", goals.get('home', 'N/A'))
+                        with col2:
+                            st.metric("✈️ Deplasman Beklenen Gol", goals.get('away', 'N/A'))
+                    
+                    # Tavsiye
+                    advice = predictions.get('advice', 'Tavsiye mevcut değil')
+                    st.markdown("### 💡 AI Tavsiyesi")
+                    st.info(f"🤖 {advice}")
+                    
+                    # Under/Over tahminleri
+                    under_over = predictions.get('under_over', {})
+                    if under_over:
+                        st.markdown("### 📈 Alt/Üst Tahminleri")
+                        st.write(f"**Alt:** {under_over.get('under', 'N/A')}")
+                        st.write(f"**Üst:** {under_over.get('over', 'N/A')}")
+                        st.write(f"**Gol Eşiği:** {under_over.get('goals', 'N/A')}")
+                
+                else:
+                    st.info("AI tahmin verisi bulunamadı")
+            else:
+                st.warning("AI tahminleri alınamadı")
+    
+    except Exception as e:
+        st.error(f"AI tahminleri alınırken hata oluştu: {str(e)}")
+
+def display_odds_comparison_tab(fixture_id: int):
+    """Bahis oranları karşılaştırma tab'ı"""
+    st.subheader("💰 Bahis Oranları Karşılaştırması")
+    
+    try:
+        from football_api_v3 import APIFootballV3
+        api_instance = APIFootballV3(API_KEY)
+        
+        with st.spinner("Bahis oranları alınıyor..."):
+            odds_result = api_instance.get_odds(fixture_id=fixture_id)
+            
+            if odds_result.status.value == "success" and odds_result.data:
+                fixture_odds = odds_result.data[0] if odds_result.data else None
+                
+                if fixture_odds:
+                    bookmakers = fixture_odds.get('bookmakers', [])
+                    
+                    if bookmakers:
+                        st.markdown("### 📚 Bookmaker Oranları")
+                        
+                        # En iyi oranları bul
+                        best_odds = {}
+                        all_odds_data = []
+                        
+                        for bookmaker in bookmakers[:5]:  # İlk 5 bookmaker
+                            bookmaker_name = bookmaker.get('name', 'Bilinmiyor')
+                            bets = bookmaker.get('bets', [])
+                            
+                            for bet in bets:
+                                bet_name = bet.get('name', 'Bahis')
+                                values = bet.get('values', [])
+                                
+                                odds_row = {'Bookmaker': bookmaker_name, 'Bahis Türü': bet_name}
+                                
+                                for value in values:
+                                    value_name = value.get('value', 'N/A')
+                                    odd_value = value.get('odd', 'N/A')
+                                    
+                                    odds_row[value_name] = odd_value
+                                    
+                                    # En iyi oranları takip et
+                                    key = f"{bet_name}_{value_name}"
+                                    try:
+                                        if key not in best_odds or float(odd_value) > float(best_odds[key]['odd']):
+                                            best_odds[key] = {
+                                                'bookmaker': bookmaker_name,
+                                                'odd': odd_value
+                                            }
+                                    except:
+                                        pass
+                                
+                                all_odds_data.append(odds_row)
+                        
+                        # Oranları tablo halinde göster
+                        if all_odds_data:
+                            df_odds = pd.DataFrame(all_odds_data)
+                            st.dataframe(df_odds, use_container_width=True, hide_index=True)
+                        
+                        # En iyi oranları göster
+                        if best_odds:
+                            st.markdown("### 🏆 En İyi Oranlar")
+                            
+                            cols = st.columns(min(3, len(best_odds)))
+                            for idx, (bet_key, odds_info) in enumerate(list(best_odds.items())[:3]):
+                                with cols[idx]:
+                                    bet_display = bet_key.replace('_', ' - ')
+                                    st.metric(
+                                        bet_display,
+                                        odds_info['odd'],
+                                        delta=f"🏪 {odds_info['bookmaker']}"
+                                    )
+                    else:
+                        st.info("Bu maç için bookmaker oranları bulunamadı")
+                else:
+                    st.info("Bu maç için oran verisi bulunamadı")
+            else:
+                st.warning("Bahis oranları alınamadı")
+    
+    except Exception as e:
+        st.error(f"Bahis oranları alınırken hata oluştu: {str(e)}")
+
 @st.cache_data(ttl=3600, show_spinner=False)  # 1 saat cache - daha sık güncelleme
 def analyze_fixture_summary(fixture: Dict, model_params: Dict) -> Optional[Dict]:
     """
@@ -1257,8 +1551,8 @@ def analyze_and_display(team_a_data: Dict, team_b_data: Dict, fixture_id: int, m
     </style>
     """, unsafe_allow_html=True)
     
-    tab_list = ["🎯 Tahmin Özeti", "📈 İstatistikler", "🎲 Detaylı İddaa", "🚑 Eksikler", "📊 Puan Durumu", "⚔️ H2H Analizi", "⚖️ Hakem Analizi", "⚙️ Analiz Parametreleri"]
-    tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8 = st.tabs(tab_list)
+    tab_list = ["🎯 Tahmin Özeti", "📈 İstatistikler", "🎲 Detaylı İddaa", "🚑 Eksikler", "📊 Puan Durumu", "⚔️ H2H Analizi", "⚖️ Hakem Analizi", "👨‍💼 Antrenörler", "🏟️ Stad Bilgisi", "🔮 AI Tahmin", "💰 Bahis Oranları", "⚙️ Analiz Parametreleri"]
+    tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9, tab10, tab11, tab12 = st.tabs(tab_list)
 
     team_logos = {'a': logo_a, 'b': logo_b}
     
@@ -1269,7 +1563,11 @@ def analyze_and_display(team_a_data: Dict, team_b_data: Dict, fixture_id: int, m
     with tab5: display_standings_tab(league_info, team_names)
     with tab6: display_h2h_tab(processed_h2h, team_names)
     with tab7: display_referee_tab(processed_referee_stats)
-    with tab8: display_parameters_tab(analysis['params'], team_names)
+    with tab8: display_coaches_tab(team_ids, team_names)
+    with tab9: display_venue_tab(fixture_id, fixture_details)
+    with tab10: display_ai_predictions_tab(fixture_id)
+    with tab11: display_odds_comparison_tab(fixture_id)
+    with tab12: display_parameters_tab(analysis['params'], team_names)
 
 @st.cache_data(ttl=3600, show_spinner=False)  # 1 saat cache - sık güncelleme
 def get_top_predictions_today(model_params: Dict, today_date: date, is_admin_user: bool, top_n: int = 5) -> List[Dict]:
