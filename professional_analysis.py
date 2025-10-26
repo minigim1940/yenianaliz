@@ -33,6 +33,8 @@ class ProfessionalAnalysisEngine:
     def __init__(self, api: APIFootballV3):
         self.api = api
         self.current_season = api.get_current_season()
+        self._timezones_cache = None
+        self._countries_cache = None
     
     def comprehensive_team_analysis(self, team_name: str, 
                                    league_id: Optional[int] = None,
@@ -402,6 +404,161 @@ class ProfessionalAnalysisEngine:
                     st.write(f"**{stat_name}**")
                 with col3:
                     st.write(f"{away_val}")
+    
+    def timezone_management_dashboard(self) -> None:
+        """Timezone yönetimi dashboard'u"""
+        st.subheader("🌍 Timezone Yönetimi")
+        
+        # Get available timezones
+        if not self._timezones_cache:
+            with st.spinner("⏰ Timezone bilgileri alınıyor..."):
+                timezone_result = self.api.get_timezones()
+                
+                if timezone_result.status == APIStatus.SUCCESS:
+                    self._timezones_cache = timezone_result.data
+                else:
+                    st.error(f"❌ Timezone bilgileri alınamadı: {timezone_result.error}")
+                    return
+        
+        if self._timezones_cache:
+            # Timezone selection
+            col1, col2 = st.columns([2, 1])
+            
+            with col1:
+                # Group timezones by continent
+                timezone_groups = {}
+                for tz in self._timezones_cache:
+                    if '/' in tz:
+                        continent = tz.split('/')[0]
+                        if continent not in timezone_groups:
+                            timezone_groups[continent] = []
+                        timezone_groups[continent].append(tz)
+                
+                selected_continent = st.selectbox(
+                    "🌍 Kıta Seçin:",
+                    list(timezone_groups.keys()),
+                    index=list(timezone_groups.keys()).index('Europe') if 'Europe' in timezone_groups else 0
+                )
+                
+                if selected_continent:
+                    selected_timezone = st.selectbox(
+                        "⏰ Timezone Seçin:",
+                        timezone_groups[selected_continent],
+                        index=timezone_groups[selected_continent].index('Europe/Istanbul') 
+                        if selected_continent == 'Europe' and 'Europe/Istanbul' in timezone_groups[selected_continent] else 0
+                    )
+                    
+                    if selected_timezone:
+                        st.success(f"✅ Seçilen Timezone: **{selected_timezone}**")
+                        
+                        # Store in session state for future use
+                        st.session_state['selected_timezone'] = selected_timezone
+            
+            with col2:
+                st.info("""
+                **Timezone Kullanım Alanları:**
+                - Maç saatlerini yerel saate çevirmek
+                - Canlı maç takibi
+                - Fixture programları
+                - Tarihsel maç analizleri
+                """)
+        
+        # Show current timezone info
+        if 'selected_timezone' in st.session_state:
+            st.subheader("🕐 Timezone Bilgileri")
+            
+            current_tz = st.session_state['selected_timezone']
+            current_time = datetime.now()
+            
+            col1, col2, col3 = st.columns(3)
+            
+            with col1:
+                st.metric("Seçili Timezone", current_tz)
+            
+            with col2:
+                st.metric("Şu Anki Saat", current_time.strftime("%H:%M:%S"))
+            
+            with col3:
+                st.metric("Tarih", current_time.strftime("%d.%m.%Y"))
+    
+    def countries_dashboard(self) -> None:
+        """Ülkeler dashboard'u"""
+        st.subheader("🌎 Ülkeler ve Ligler")
+        
+        # Get countries if not cached
+        if not self._countries_cache:
+            with st.spinner("🌎 Ülke bilgileri alınıyor..."):
+                countries_result = self.api.get_countries()
+                
+                if countries_result.status == APIStatus.SUCCESS:
+                    self._countries_cache = countries_result.data
+                else:
+                    st.error(f"❌ Ülke bilgileri alınamadı: {countries_result.error}")
+                    return
+        
+        if self._countries_cache:
+            # Search functionality
+            search_term = st.text_input("🔍 Ülke Ara:", placeholder="Örn: Turkey, England, Spain")
+            
+            # Filter countries
+            filtered_countries = self._countries_cache
+            if search_term:
+                filtered_countries = [
+                    country for country in self._countries_cache
+                    if search_term.lower() in country.get('name', '').lower()
+                ]
+            
+            # Display countries in a nice grid
+            cols_per_row = 4
+            countries_to_show = filtered_countries[:20]  # Limit to 20
+            
+            for i in range(0, len(countries_to_show), cols_per_row):
+                cols = st.columns(cols_per_row)
+                
+                for j in range(cols_per_row):
+                    if i + j < len(countries_to_show):
+                        country = countries_to_show[i + j]
+                        
+                        with cols[j]:
+                            # Country card
+                            if country.get('flag'):
+                                st.image(country['flag'], width=60)
+                            
+                            st.write(f"**{country.get('name', 'Bilinmiyor')}**")
+                            st.write(f"Kod: {country.get('code', 'N/A')}")
+                            
+                            # Button to get leagues for this country
+                            if st.button(f"Ligleri Gör", key=f"country_{country.get('code', i)}"):
+                                self._show_country_leagues(country.get('name', ''))
+            
+            # Show total count
+            st.info(f"📊 Toplam {len(self._countries_cache)} ülke mevcut. "
+                   f"Gösterilen: {len(countries_to_show)}")
+    
+    def _show_country_leagues(self, country_name: str) -> None:
+        """Belirli bir ülkenin liglerini göster"""
+        with st.spinner(f"🏆 {country_name} ligları alınıyor..."):
+            leagues_result = self.api.get_all_leagues(country=country_name)
+            
+            if leagues_result.status == APIStatus.SUCCESS and leagues_result.data:
+                st.subheader(f"🏆 {country_name} Ligleri")
+                
+                leagues_data = []
+                for league in leagues_result.data:
+                    league_info = league.get('league', {})
+                    leagues_data.append({
+                        'Lig': league_info.get('name', 'Bilinmiyor'),
+                        'Tür': league_info.get('type', 'Bilinmiyor'),
+                        'ID': league_info.get('id', 'N/A')
+                    })
+                
+                if leagues_data:
+                    df = pd.DataFrame(leagues_data)
+                    st.dataframe(df, use_container_width=True, hide_index=True)
+                else:
+                    st.warning(f"❌ {country_name} için lig bulunamadı")
+            else:
+                st.error(f"❌ {country_name} ligleri alınamadı")
 
 # Global analysis engine instance
 analysis_engine: Optional[ProfessionalAnalysisEngine] = None

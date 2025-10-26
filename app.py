@@ -1504,8 +1504,9 @@ def build_home_view(model_params):
                             else:
                                 st.error(f"❌ **{team_data['name']}** takımının yaklaşan maçı bulunamadı.")
                                 st.info("💡 **İpucu:** Takım adını farklı dillerde deneyin (İngilizce, Türkçe vs.)")
-                    
-                else:
+                
+                # Bu blokun dışındaki takım bulunamadı durumu için ek kontrol
+                if not team_data:
                     st.error(f"❌ '{team_query}' takımı bulunamadı.")
                     st.info("💡 **İpucu:** Takım adını tam olarak yazmaya çalışın veya farklı dillerde deneyin.")
         else:
@@ -1964,6 +1965,61 @@ def render_code_finder(embed: bool = False, key_prefix: str = "code_finder"):
 def build_codes_view():
     render_code_finder(embed=False, key_prefix="standalone")
 
+def display_timezone_management():
+    """Saat dilimi yönetimi sayfası"""
+    st.markdown("""
+    <h1 style='text-align: center; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
+               -webkit-background-clip: text; -webkit-text-fill-color: transparent; 
+               background-clip: text; font-size: 2.5em; margin: 10px 0;'>
+        🌍 Saat Dilimi Yönetimi
+    </h1>
+    """, unsafe_allow_html=True)
+    
+    st.info("ℹ️ Maç saatlerini farklı saat dilimlerinde görüntülemek için bu sayfayı kullanabilirsiniz.")
+    
+    # Professional analysis engine'i başlat
+    try:
+        from professional_analysis import ProfessionalAnalysisEngine
+        from football_api_v3 import APIFootballV3
+        
+        # API wrapper'ı başlat
+        api = APIFootballV3(API_KEY)
+        
+        # Professional analysis engine'i başlat
+        analysis_engine = ProfessionalAnalysisEngine(api)
+        
+        # Timezone management dashboard'u göster
+        analysis_engine.timezone_management_dashboard()
+        
+    except Exception as e:
+        st.error(f"Saat dilimi yönetimi yüklenirken hata oluştu: {e}")
+        
+        # Fallback - basit timezone listesi
+        st.markdown("### 🌍 Kullanılabilir Saat Dilimleri")
+        
+        # Temel saat dilimleri listesi
+        timezones = [
+            "Europe/London", "Europe/Paris", "Europe/Istanbul", "Europe/Madrid",
+            "America/New_York", "America/Los_Angeles", "America/Chicago",
+            "Asia/Tokyo", "Asia/Shanghai", "Asia/Dubai", "Australia/Sydney"
+        ]
+        
+        selected_tz = st.selectbox("Saat dilimi seçin:", timezones)
+        
+        if selected_tz:
+            from datetime import datetime
+            import pytz
+            
+            try:
+                tz = pytz.timezone(selected_tz)
+                current_time = datetime.now(tz)
+                
+                st.success(f"📍 **{selected_tz}** saat diliminde şu anki saat: **{current_time.strftime('%H:%M:%S')}**")
+                st.info(f"📅 Tarih: {current_time.strftime('%d.%m.%Y')}")
+                
+            except Exception as e:
+                st.error(f"Saat dilimi bilgisi alınamadı: {e}")
+
 def main():
     # KALICI OTURUM - LocalStorage ile yönetim
     # JavaScript ile localStorage'dan kullanıcı bilgisini oku
@@ -2230,8 +2286,8 @@ def main():
             # URL'den view parametresini al, yoksa 'home' yap
             query_params = st.query_params
             view_param = query_params.get('view', 'home')
-            # Geçerli view'lar: home, dashboard, manual, codes
-            valid_views = ['home', 'dashboard', 'manual', 'codes']
+            # Geçerli view'lar: home, dashboard, manual, codes, enhanced, timezone
+            valid_views = ['home', 'dashboard', 'manual', 'codes', 'enhanced', 'timezone']
             st.session_state.view = view_param if view_param in valid_views else 'home'
         
         # Favori ligleri config'den yükle (ilk giriş)
@@ -2288,6 +2344,12 @@ def main():
         with nav_col4:
             if st.button("🔍", use_container_width=True, key="nav_enhanced", help="Gelişmiş Analiz"):
                 update_url_and_rerun('enhanced')
+        
+        # İkinci sıra navigasyon butonları
+        nav_col5, nav_col6, nav_col7, nav_col8 = st.sidebar.columns(4)
+        with nav_col5:
+            if st.button("🌍", use_container_width=True, key="nav_timezone", help="Saat Dilimi"):
+                update_url_and_rerun('timezone')
         
         st.sidebar.markdown("---")
         
@@ -3022,8 +3084,9 @@ def main():
             build_manual_view(st.session_state.model_params)
         elif st.session_state.view == 'enhanced':
             display_enhanced_match_analysis(API_KEY, BASE_URL)
+        elif st.session_state.view == 'timezone':
+            display_timezone_management()
         elif st.session_state.view == 'codes':
-            build_codes_view()
             build_codes_view()
 
     elif st.session_state["authentication_status"] is False:

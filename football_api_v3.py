@@ -421,6 +421,30 @@ class APIFootballV3:
         """Get API status and subscription info"""
         return self._make_request("status")
     
+    def get_timezones(self) -> APIResponse:
+        """
+        Get all available timezones
+        
+        Returns:
+            APIResponse with list of timezone strings
+            
+        Example response:
+            ["Africa/Abidjan", "Africa/Accra", "Europe/Istanbul", ...]
+        """
+        return self._make_request("timezone")
+    
+    def get_countries(self) -> APIResponse:
+        """
+        Get all available countries
+        
+        Returns:
+            APIResponse with list of country objects containing:
+            - name: Country name
+            - code: Country code (2 letters)
+            - flag: Country flag URL
+        """
+        return self._make_request("countries")
+    
     def get_current_season(self) -> int:
         """Get current season year"""
         return datetime.now().year if datetime.now().month >= 7 else datetime.now().year - 1
