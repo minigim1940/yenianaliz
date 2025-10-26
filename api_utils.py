@@ -977,11 +977,50 @@ def get_team_id(api_key: str, base_url: str, team_input: str, season: Optional[i
         if not season:
             season = api.get_current_season()
         
-        # Search by ID if input is numeric, otherwise search by name
+        # Enhanced search with Turkish team name mapping
+        turkish_team_mapping = {
+            'galatasaray': 644,
+            'gala': 644,
+            'gs': 644,
+            'cimbom': 644,
+            'fenerbahce': 645,
+            'fenerbahçe': 645,
+            'fener': 645,
+            'fb': 645,
+            'besiktas': 646,
+            'beşiktaş': 646,
+            'bjk': 646,
+            'kartal': 646,
+            'trabzonspor': 643,
+            'trabzon': 643,
+            'ts': 643,
+            'basaksehir': 3569,
+            'başakşehir': 3569,
+            'konyaspor': 3568,
+            'konya': 3568,
+            'sivasspor': 2833,
+            'sivas': 2833
+        }
+        
+        # Normalize team input (remove spaces, lowercase, trim)
+        normalized_input = team_input.strip().lower().replace(' ', '')
+        
+        # Search by ID if input is numeric
         if team_input.isdigit():
             result = api.get_team_by_id(int(team_input), season)
+        # Check Turkish team mapping first (both original and normalized)
+        elif team_input.lower() in turkish_team_mapping or normalized_input in turkish_team_mapping:
+            team_id = turkish_team_mapping.get(team_input.lower()) or turkish_team_mapping.get(normalized_input)
+            result = api.get_team_by_id(team_id, season)
         else:
+            # Try original search first
             result = api.search_teams(team_input, season=season)
+            
+            # If no results with original, try without spaces and special chars
+            if result.status.value == "success" and (not result.data or len(result.data) == 0):
+                clean_input = ''.join(c for c in team_input if c.isalnum())
+                if clean_input != team_input:
+                    result = api.search_teams(clean_input, season=season)
         
         # Handle API response
         if result.status.value == "error":
@@ -1005,7 +1044,7 @@ def get_team_id(api_key: str, base_url: str, team_input: str, season: Optional[i
         if len(teams) > 1:
             # Popüler takım ID'leri
             popular_teams = [
-                645, 646, 644, 643, 3569,  # Türkiye
+                644, 645, 646, 643, 3569, 3568, 2833,  # Türkiye (Galatasaray=644, Fenerbahçe=645, Beşiktaş=646)
                 33, 34, 40, 42, 47, 49, 50,  # İngiltere  
                 529, 530, 531, 532, 533,  # İspanya
                 489, 487, 488, 492, 496, 500, 505,  # İtalya
