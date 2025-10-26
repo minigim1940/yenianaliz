@@ -65,3 +65,4 @@ isort>=5.12.0
 
 # Streamlit Web Framework
 streamlit>=1.28.0
+streamlit-authenticator>=0.2.3
