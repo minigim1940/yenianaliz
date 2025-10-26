@@ -1043,7 +1043,7 @@ def display_betting_categories_turkish(bookmakers_data, reliable_odds, team_name
     # Karşılıklı Gol
     if 'Both Teams Score' in reliable_odds:
         st.markdown("---")
-        st.markdown("#### ⚽⚽ Karşılıklı Gol")
+        st.markdown("#### ⚽ Karşılıklı Gol")
         
         btts = reliable_odds['Both Teams Score']
         
@@ -3700,7 +3700,7 @@ def check_goal_notification(fixture_id, home_score, away_score, home_team, away_
                 }}
             </style>
             <h1 style="color: white; margin: 0; font-size: 4em; text-shadow: 2px 2px 4px rgba(0,0,0,0.5);">
-                ⚽ GOL! ⚽
+                ⚽ GOL!
             </h1>
             <h2 style="color: white; margin: 10px 0; font-size: 2.5em; text-shadow: 2px 2px 4px rgba(0,0,0,0.5);">
                 {goal_scorer}
@@ -5495,6 +5495,79 @@ def main():
                 with col2:
                     st.info("Development bypass:\n- Admin yetkileri\n- IP kısıtı yok\n- Sınırsız API")
 
+def search_fixtures_by_team(api, team_name_query):
+    """Takım ismiyle maç arama"""
+    try:
+        if len(team_name_query) < 2:
+            return []
+        
+        # Önce takımları ara
+        teams_result = api.search_teams(team_name_query)
+        if teams_result.status.value != "success" or not teams_result.data:
+            return []
+        
+        matches = []
+        current_date = datetime.now().strftime('%Y-%m-%d')
+        
+        # Her takım için son maçları al
+        for team in teams_result.data[:5]:  # İlk 5 takım
+            team_id = team.get('team', {}).get('id')
+            team_name = team.get('team', {}).get('name')
+            
+            if team_id:
+                # Son 10 maç + önümüzdeki 5 maç
+                fixtures_result = api.get_team_fixtures(team_id, season=2024, last=15)
+                if fixtures_result.status.value == "success" and fixtures_result.data:
+                    for fixture in fixtures_result.data:
+                        fixture_data = {
+                            'id': fixture.get('fixture', {}).get('id'),
+                            'date': fixture.get('fixture', {}).get('date', ''),
+                            'home_team': fixture.get('teams', {}).get('home', {}).get('name', ''),
+                            'away_team': fixture.get('teams', {}).get('away', {}).get('name', ''),
+                            'status': fixture.get('fixture', {}).get('status', {}).get('short', ''),
+                            'league': fixture.get('league', {}).get('name', ''),
+                            'score': fixture.get('goals', {})
+                        }
+                        matches.append(fixture_data)
+        
+        # Tekrarları kaldır ve tarihe göre sırala
+        unique_matches = []
+        seen_ids = set()
+        for match in matches:
+            if match['id'] not in seen_ids:
+                seen_ids.add(match['id'])
+                unique_matches.append(match)
+        
+        # Tarihe göre sırala (en yeni önce)
+        unique_matches.sort(key=lambda x: x['date'], reverse=True)
+        return unique_matches[:20]  # En fazla 20 maç
+        
+    except Exception as e:
+        st.error(f"Maç arama hatası: {e}")
+        return []
+
+def format_match_display(match):
+    """Maç bilgisini güzel formatta göster"""
+    date = match['date'][:10] if match['date'] else 'Bilinmiyor'
+    status = match['status']
+    home_team = match['home_team']
+    away_team = match['away_team']
+    league = match['league']
+    
+    if status in ['FT', 'AET', 'PEN']:
+        home_score = match['score'].get('home', 0) if match['score'] else 0
+        away_score = match['score'].get('away', 0) if match['score'] else 0
+        score_str = f" ({home_score}-{away_score})"
+        status_emoji = "✅"
+    elif status in ['1H', '2H', 'HT', 'ET']:
+        score_str = " 🔴 CANLI"
+        status_emoji = "🔴"
+    else:
+        score_str = ""
+        status_emoji = "📅"
+    
+    return f"{status_emoji} {date} | {home_team} vs {away_team}{score_str} | {league}"
+
 def display_professional_analysis():
     """Profesyonel analiz sayfası - Gelişmiş API-Football v3 özellikleri"""
     
@@ -5503,7 +5576,7 @@ def display_professional_analysis():
     
     # API anahtarını al
     try:
-        from football_api_v3 import APIFootballV3, AdvancedAnalytics, initialize_api
+        from football_api_v3 import APIFootballV3, AdvancedAnalytics, initialize_api, LiveDataStreamer, RealTimeAnalyzer, AdvancedReliabilityEngine, EnhancedPredictionEngine, IntelligentValidationSystem, SmartConfidenceCalculator
         
         if 'pro_analysis_api' not in st.session_state:
             # API anahtarını farklı yollarla dene
@@ -5543,31 +5616,550 @@ def display_professional_analysis():
             return
     
     # Tab sistemı
-    tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
+    tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs([
         "🔍 Kapsamlı Maç Analizi", 
         "📊 Gelişmiş Takım Performansı", 
         "💰 Detaylı Bahis Analizi", 
         "🏟️ Saha & Hava Durumu", 
         "👥 Oyuncu Etkisi", 
-        "🔴 Canlı Maç Zekası"
+        "🔴 Canlı Maç Zekası",
+        "⚡ Gerçek Zamanlı Analiz"
     ])
     
     with tab1:
         st.markdown("## 🔍 Kapsamlı Maç Analizi")
-        st.markdown("*Tüm maç verilerini birleştiren profesyonel analiz*")
+        st.markdown("*Takım isimleriyle akıllı maç arama ve profesyonel analiz*")
         
-        # Maç ID girişi
-        col1, col2 = st.columns([2, 1])
+        # Akıllı maç arama sistemi
+        col1, col2 = st.columns([3, 1])
+        
         with col1:
-            fixture_id = st.number_input("Maç ID", min_value=1, value=868584, key="comprehensive_fixture_id")
-        with col2:
-            if st.button("🔍 Kapsamlı Analiz Yap", use_container_width=True):
-                with st.spinner("Profesyonel analiz yapılıyor..."):
-                    analysis = analytics.get_comprehensive_match_analysis(fixture_id)
+            team_search = st.text_input(
+                "🔍 Takım Adı Yazın (en az 2 harf)",
+                placeholder="Örnek: Galatasaray, Barcelona, Manchester...",
+                key="team_search_comprehensive"
+            )
+        
+        # Arama sonuçları
+        selected_fixture_id = None
+        if len(team_search) >= 2:
+            with st.spinner("Maçlar aranıyor..."):
+                matches = search_fixtures_by_team(api, team_search)
+            
+            if matches:
+                st.markdown("### 📋 Bulunan Maçlar")
+                
+                # Her maç için seçim butonu
+                for i, match in enumerate(matches[:10]):  # İlk 10 maçı göster
+                    col1, col2 = st.columns([4, 1])
+                    
+                    with col1:
+                        match_display = format_match_display(match)
+                        st.markdown(f"**{match_display}**")
+                    
+                    with col2:
+                        if st.button("🎯 Seç", key=f"select_match_{i}", use_container_width=True):
+                            selected_fixture_id = match['id']
+                            st.session_state['selected_fixture_comprehensive'] = match
+                            st.success(f"Seçildi: {match['home_team']} vs {match['away_team']}")
+            else:
+                st.info("Bu takım adıyla maç bulunamadı. Farklı bir isim deneyin.")
+        
+        # Seçili maç varsa analiz yap
+        if 'selected_fixture_comprehensive' in st.session_state or selected_fixture_id:
+            if selected_fixture_id:
+                fixture_data = next((m for m in matches if m['id'] == selected_fixture_id), None)
+            else:
+                fixture_data = st.session_state['selected_fixture_comprehensive']
+                selected_fixture_id = fixture_data['id']
+            
+            if fixture_data:
+                # Seçili maç bilgisi göster
+                st.markdown("### ✅ Seçili Maç")
+                st.info(f"**{fixture_data['home_team']} vs {fixture_data['away_team']}** | {fixture_data['date'][:10]} | {fixture_data['league']}")
+                
+                # Analiz seçenekleri
+                col1, col2 = st.columns([2, 1])
+                
+                with col1:
+                    analysis_type = st.selectbox(
+                        "📊 Analiz Türü",
+                        ["🔍 Standart Analiz", "⚡ Gelişmiş Güvenilirlik Analizi", "🤖 AI Destekli Tahmin", "🛡️ Süper Doğrulama Sistemi"],
+                        key="analysis_type_comprehensive"
+                    )
+                
+                with col2:
+                    enable_reliability_check = st.checkbox("✅ Güvenilirlik Kontrolü", value=True)
+                
+                if st.button("🔍 Kapsamlı Analiz Yap", use_container_width=True, type="primary"):
+                    # Güvenilirlik ve Tahmin motorlarını başlat
+                    if 'reliability_engine' not in st.session_state:
+                        st.session_state.reliability_engine = AdvancedReliabilityEngine(api)
+                    
+                    if 'prediction_engine' not in st.session_state:
+                        st.session_state.prediction_engine = EnhancedPredictionEngine(api)
+                    
+                    if 'validation_system' not in st.session_state:
+                        st.session_state.validation_system = IntelligentValidationSystem(api)
+                    
+                    if 'confidence_calculator' not in st.session_state:
+                        st.session_state.confidence_calculator = SmartConfidenceCalculator()
+                    
+                    reliability_engine = st.session_state.reliability_engine
+                    prediction_engine = st.session_state.prediction_engine
+                    validation_system = st.session_state.validation_system
+                    confidence_calculator = st.session_state.confidence_calculator
+                    
+                    with st.spinner("Profesyonel analiz yapılıyor..."):
+                        analysis = analytics.get_comprehensive_match_analysis(selected_fixture_id)
                     
                     if 'error' in analysis:
                         st.error(f"Analiz hatası: {analysis['error']}")
                     else:
+                        # Gelişmiş güvenilirlik analizi
+                        if enable_reliability_check and analysis_type != "🔍 Standart Analiz":
+                            st.markdown("### 🔬 Gelişmiş Güvenilirlik Analizi")
+                            
+                            with st.spinner("Güvenilirlik analizi yapılıyor..."):
+                                # Analiz verilerini hazırla
+                                analysis_data = {
+                                    'match_state': {
+                                        'current_status': 'NS',  # Not Started ya da gerçek durum
+                                        'elapsed_time': 0,
+                                        'current_score': {'home': 0, 'away': 0},
+                                        'total_events': len(analysis.get('events', [])),
+                                        'match_phase': 'pre_match',
+                                        'intensity': 'medium'
+                                    },
+                                    'performance_metrics': analysis.get('statistics', {}),
+                                    'momentum': {'current_momentum': 'neutral', 'momentum_score': 0},
+                                    'predictions': analysis.get('predictions', {}),
+                                    'risk_analysis': {'risk_level': 'medium', 'risk_score': 2},
+                                    'events': analysis.get('events', [])
+                                }
+                                
+                                reliability_report = reliability_engine.calculate_analysis_reliability(
+                                    analysis_data, selected_fixture_id
+                                )
+                            
+                            # Güvenilirlik raporu göster
+                            if reliability_report and 'error' not in reliability_report:
+                                col1, col2, col3, col4 = st.columns(4)
+                                
+                                with col1:
+                                    overall_rel = reliability_report['overall_reliability']
+                                    rel_color = "🟢" if overall_rel > 0.75 else "🟡" if overall_rel > 0.5 else "🔴"
+                                    st.metric("Genel Güvenilirlik", f"{rel_color} {overall_rel:.1%}")
+                                
+                                with col2:
+                                    rel_level = reliability_report['reliability_level']
+                                    level_names = {
+                                        'çok_yüksek': '⭐⭐⭐⭐⭐',
+                                        'yüksek': '⭐⭐⭐⭐',
+                                        'orta_yüksek': '⭐⭐⭐',
+                                        'orta': '⭐⭐',
+                                        'düşük': '⭐',
+                                        'çok_düşük': '❌'
+                                    }
+                                    st.metric("Güvenilirlik Seviyesi", level_names.get(rel_level, rel_level))
+                                
+                                with col3:
+                                    component_scores = reliability_report.get('component_scores', {})
+                                    best_component = max(component_scores.items(), key=lambda x: x[1]) if component_scores else ('N/A', 0)
+                                    st.metric("En Güçlü Bileşen", best_component[0].replace('_', ' ').title())
+                                
+                                with col4:
+                                    warnings = reliability_report.get('reliability_warnings', [])
+                                    warning_count = len(warnings)
+                                    warning_color = "🟢" if warning_count == 0 else "🟡" if warning_count <= 2 else "🔴"
+                                    st.metric("Uyarı Sayısı", f"{warning_color} {warning_count}")
+                                
+                                # Detaylı güvenilirlik bileşenleri
+                                with st.expander("📊 Detaylı Güvenilirlik Bileşenleri"):
+                                    component_scores = reliability_report.get('component_scores', {})
+                                    
+                                    for component, score in component_scores.items():
+                                        component_name = component.replace('_', ' ').title()
+                                        col1, col2 = st.columns([1, 3])
+                                        
+                                        with col1:
+                                            st.write(f"**{component_name}**")
+                                        
+                                        with col2:
+                                            progress_color = "green" if score > 0.75 else "orange" if score > 0.5 else "red"
+                                            st.progress(score)
+                                            st.caption(f"{score:.1%}")
+                                
+                                # Güvenilirlik faktörleri
+                                confidence_factors = reliability_report.get('confidence_factors', [])
+                                if confidence_factors:
+                                    st.markdown("**🎯 Güvenilirlik Faktörleri:**")
+                                    for factor in confidence_factors:
+                                        st.success(f"✅ {factor.replace('_', ' ').title()}")
+                                
+                                # Uyarılar
+                                warnings = reliability_report.get('reliability_warnings', [])
+                                if warnings:
+                                    st.markdown("**⚠️ Güvenilirlik Uyarıları:**")
+                                    for warning in warnings:
+                                        st.warning(f"⚠️ {warning.replace('_', ' ').title()}")
+                                
+                                # İyileştirme önerileri
+                                suggestions = reliability_report.get('improvement_suggestions', [])
+                                if suggestions:
+                                    st.markdown("**💡 İyileştirme Önerileri:**")
+                                    for suggestion in suggestions:
+                                        st.info(f"💡 {suggestion.replace('_', ' ').title()}")
+                        
+                        # AI Destekli Gelişmiş Tahminler
+                        if analysis_type == "🤖 AI Destekli Tahmin":
+                            st.markdown("### 🤖 AI Destekli Gelişmiş Tahminler")
+                            
+                            with st.spinner("AI tahmin motoru çalışıyor..."):
+                                # Analiz verilerini hazırla
+                                analysis_data = {
+                                    'match_state': {
+                                        'current_status': 'NS',
+                                        'elapsed_time': 0,
+                                        'current_score': {'home': 0, 'away': 0},
+                                        'total_events': len(analysis.get('events', [])),
+                                        'match_phase': 'pre_match',
+                                        'intensity': 'medium'
+                                    },
+                                    'performance_metrics': analysis.get('statistics', {}),
+                                    'momentum': {'current_momentum': 'neutral', 'momentum_score': 0},
+                                    'predictions': analysis.get('predictions', {}),
+                                    'events': analysis.get('events', [])
+                                }
+                                
+                                enhanced_predictions = prediction_engine.generate_enhanced_predictions(
+                                    analysis_data, selected_fixture_id
+                                )
+                            
+                            if enhanced_predictions and 'error' not in enhanced_predictions:
+                                # Ensemble tahmin sonuçları
+                                ensemble_pred = enhanced_predictions.get('ensemble_prediction', {})
+                                pred_confidence = enhanced_predictions.get('prediction_confidence', 0.5)
+                                
+                                st.markdown("#### 🎯 Ensemble Model Tahminleri")
+                                
+                                col1, col2, col3, col4 = st.columns(4)
+                                
+                                with col1:
+                                    home_prob = ensemble_pred.get('home', 0.33)
+                                    st.metric("Ev Sahibi Galibiyeti", f"{home_prob:.1%}")
+                                
+                                with col2:
+                                    draw_prob = ensemble_pred.get('draw', 0.33)
+                                    st.metric("Beraberlik", f"{draw_prob:.1%}")
+                                
+                                with col3:
+                                    away_prob = ensemble_pred.get('away', 0.33)
+                                    st.metric("Deplasman Galibiyeti", f"{away_prob:.1%}")
+                                
+                                with col4:
+                                    conf_color = "🟢" if pred_confidence > 0.75 else "🟡" if pred_confidence > 0.5 else "🔴"
+                                    st.metric("Tahmin Güvenilirliği", f"{conf_color} {pred_confidence:.1%}")
+                                
+                                # Model uyumu
+                                model_agreement = enhanced_predictions.get('model_agreement', {})
+                                if model_agreement:
+                                    overall_agreement = model_agreement.get('overall_agreement', 0.5)
+                                    consensus_level = model_agreement.get('consensus_level', 'medium')
+                                    
+                                    col1, col2 = st.columns(2)
+                                    with col1:
+                                        agreement_color = "🟢" if overall_agreement > 0.8 else "🟡" if overall_agreement > 0.6 else "🔴"
+                                        st.metric("Model Uyumu", f"{agreement_color} {overall_agreement:.1%}")
+                                    
+                                    with col2:
+                                        consensus_colors = {'high': '🟢', 'medium': '🟡', 'low': '🔴'}
+                                        st.metric("Konsensüs Seviyesi", f"{consensus_colors.get(consensus_level, '⚫')} {consensus_level.title()}")
+                                
+                                # Bireysel model tahminleri
+                                with st.expander("🔬 Bireysel Model Tahminleri"):
+                                    individual_models = enhanced_predictions.get('individual_models', {})
+                                    
+                                    model_names = {
+                                        'statistical': '📊 İstatistiksel Model',
+                                        'momentum': '📈 Momentum Model',
+                                        'historical': '📚 Geçmiş Veriler Model',
+                                        'form': '⚡ Form Model',
+                                        'contextual': '🎯 Bağlamsal Model'
+                                    }
+                                    
+                                    for model_key, model_pred in individual_models.items():
+                                        if model_pred:
+                                            st.markdown(f"**{model_names.get(model_key, model_key.title())}**")
+                                            col1, col2, col3 = st.columns(3)
+                                            
+                                            with col1:
+                                                st.caption(f"Ev Sahibi: {model_pred.get('home', 0):.1%}")
+                                            with col2:
+                                                st.caption(f"Beraberlik: {model_pred.get('draw', 0):.1%}")
+                                            with col3:
+                                                st.caption(f"Deplasman: {model_pred.get('away', 0):.1%}")
+                                
+                                # Gelişmiş metrikler
+                                advanced_metrics = enhanced_predictions.get('advanced_metrics', {})
+                                if advanced_metrics:
+                                    st.markdown("#### 📈 Gelişmiş Tahmin Metrikleri")
+                                    
+                                    col1, col2, col3 = st.columns(3)
+                                    
+                                    with col1:
+                                        entropy = advanced_metrics.get('prediction_entropy', 0)
+                                        st.metric("Tahmin Belirsizliği", f"{entropy:.2f}")
+                                        st.caption("Düşük = Daha kesin tahmin")
+                                    
+                                    with col2:
+                                        sharpness = advanced_metrics.get('prediction_sharpness', 0)
+                                        st.metric("Tahmin Keskinliği", f"{sharpness:.2f}")
+                                        st.caption("Yüksek = Daha net fark")
+                                    
+                                    with col3:
+                                        dominant_conf = advanced_metrics.get('dominant_outcome_confidence', 0)
+                                        st.metric("Baskın Sonuç Güveni", f"{dominant_conf:.1%}")
+                        
+                        # Süper Doğrulama Sistemi
+                        if analysis_type == "🛡️ Süper Doğrulama Sistemi":
+                            st.markdown("### 🛡️ Süper Doğrulama ve Güven Sistemi")
+                            
+                            with st.spinner("Kapsamlı doğrulama sistemi çalışıyor..."):
+                                # Analiz verilerini hazırla
+                                analysis_data = {
+                                    'match_state': {
+                                        'current_status': 'NS',
+                                        'elapsed_time': 0,
+                                        'current_score': {'home': 0, 'away': 0},
+                                        'total_events': len(analysis.get('events', [])),
+                                        'match_phase': 'pre_match',
+                                        'intensity': 'medium'
+                                    },
+                                    'performance_metrics': analysis.get('statistics', {}),
+                                    'momentum': {'current_momentum': 'neutral', 'momentum_score': 0},
+                                    'predictions': analysis.get('predictions', {}),
+                                    'events': analysis.get('events', []),
+                                    'analysis_timestamp': datetime.now().isoformat()
+                                }
+                                
+                                # Kapsamlı doğrulama
+                                comprehensive_validation = validation_system.comprehensive_data_validation(
+                                    selected_fixture_id, analysis_data
+                                )
+                                
+                                # Akıllı güven hesaplama
+                                smart_confidence = confidence_calculator.calculate_smart_confidence(
+                                    analysis_data, comprehensive_validation
+                                )
+                            
+                            # Süper Doğrulama Sonuçları
+                            if comprehensive_validation and 'error' not in comprehensive_validation:
+                                st.markdown("#### 🎯 Genel Doğrulama Durumu")
+                                
+                                col1, col2, col3, col4 = st.columns(4)
+                                
+                                with col1:
+                                    validation_score = comprehensive_validation.get('validation_score', 0)
+                                    score_color = "🟢" if validation_score > 0.8 else "🟡" if validation_score > 0.6 else "🔴"
+                                    st.metric("Doğrulama Puanı", f"{score_color} {validation_score:.1%}")
+                                
+                                with col2:
+                                    overall_confidence = smart_confidence.get('overall_confidence', 0.5)
+                                    conf_color = "🟢" if overall_confidence > 0.8 else "🟡" if overall_confidence > 0.6 else "🔴"
+                                    st.metric("Akıllı Güven Puanı", f"{conf_color} {overall_confidence:.1%}")
+                                
+                                with col3:
+                                    confidence_level = smart_confidence.get('confidence_level', 'unknown')
+                                    level_emojis = {
+                                        'exceptional': '🌟', 'high': '⭐', 'good': '✅', 
+                                        'moderate': '🔶', 'low': '⚠️', 'very_low': '❌'
+                                    }
+                                    st.metric("Güven Seviyesi", f"{level_emojis.get(confidence_level, '❓')} {confidence_level.title()}")
+                                
+                                with col4:
+                                    anomaly_count = len(comprehensive_validation.get('anomaly_detections', []))
+                                    anomaly_color = "🟢" if anomaly_count == 0 else "🟡" if anomaly_count <= 2 else "🔴"
+                                    st.metric("Anomali Sayısı", f"{anomaly_color} {anomaly_count}")
+                                
+                                # Çoklu Kaynak Doğrulama Detayları
+                                cross_source = comprehensive_validation.get('cross_source_verification', {})
+                                if cross_source:
+                                    st.markdown("#### 🔗 Çoklu Kaynak Doğrulama")
+                                    
+                                    col1, col2 = st.columns(2)
+                                    
+                                    with col1:
+                                        st.markdown("**API Tutarlılık Durumu**")
+                                        api_consistency = cross_source.get('api_consistency_score', 0)
+                                        st.progress(api_consistency)
+                                        st.caption(f"Tutarlılık: {api_consistency:.1%}")
+                                        
+                                        data_source_reliability = cross_source.get('data_source_reliability', {})
+                                        for source, reliability in data_source_reliability.items():
+                                            source_status = "✅" if reliability > 0.8 else "⚠️" if reliability > 0.5 else "❌"
+                                            st.write(f"{source_status} {source.replace('_', ' ').title()}: {reliability:.1%}")
+                                    
+                                    with col2:
+                                        st.markdown("**Endpoint Uyumu**")
+                                        endpoint_agreement = cross_source.get('endpoint_agreement', {})
+                                        
+                                        for endpoint, agreement in endpoint_agreement.items():
+                                            agreement_status = "✅" if agreement > 0.8 else "⚠️" if agreement > 0.5 else "❌"
+                                            st.write(f"{agreement_status} {endpoint.replace('_', ' ').title()}: {agreement:.1%}")
+                                
+                                # Akıllı Güven Analizi Detayları
+                                confidence_breakdown = smart_confidence.get('confidence_breakdown', {})
+                                if confidence_breakdown:
+                                    st.markdown("#### 🧠 Akıllı Güven Analizi")
+                                    
+                                    # Güven faktörleri radar chart'ı için veriler
+                                    factor_names = []
+                                    factor_scores = []
+                                    factor_colors = []
+                                    
+                                    factor_display_names = {
+                                        'data_volume': 'Veri Miktarı',
+                                        'data_freshness': 'Veri Güncelliği',
+                                        'source_diversity': 'Kaynak Çeşitliliği',
+                                        'validation_consistency': 'Doğrulama Tutarlılığı',
+                                        'historical_accuracy': 'Geçmiş Doğruluk',
+                                        'cross_verification': 'Çapraz Doğrulama'
+                                    }
+                                    
+                                    for factor, score in confidence_breakdown.items():
+                                        display_name = factor_display_names.get(factor, factor.replace('_', ' ').title())
+                                        factor_names.append(display_name)
+                                        factor_scores.append(score)
+                                        
+                                        if score >= 0.8:
+                                            factor_colors.append('green')
+                                        elif score >= 0.6:
+                                            factor_colors.append('orange')
+                                        else:
+                                            factor_colors.append('red')
+                                    
+                                    # Güven faktörleri tablosu
+                                    col1, col2 = st.columns(2)
+                                    
+                                    with col1:
+                                        st.markdown("**Güven Faktörleri**")
+                                        for name, score, color in zip(factor_names, factor_scores, factor_colors):
+                                            progress_color = 'normal' if color == 'green' else 'normal'
+                                            st.write(f"**{name}**")
+                                            st.progress(score)
+                                            st.caption(f"{score:.1%}")
+                                    
+                                    with col2:
+                                        # Güven aralığı
+                                        confidence_interval = smart_confidence.get('confidence_interval', {})
+                                        if confidence_interval:
+                                            st.markdown("**Güven Aralığı (95%)**")
+                                            lower_bound = confidence_interval.get('lower_bound', 0)
+                                            upper_bound = confidence_interval.get('upper_bound', 1)
+                                            margin_error = confidence_interval.get('margin_of_error', 0)
+                                            
+                                            st.write(f"Alt sınır: {lower_bound:.1%}")
+                                            st.write(f"Üst sınır: {upper_bound:.1%}")
+                                            st.write(f"Hata payı: ±{margin_error:.1%}")
+                                        
+                                        # Güvenilirlik göstergeleri
+                                        reliability_indicators = smart_confidence.get('reliability_indicators', {})
+                                        if reliability_indicators:
+                                            strongest = reliability_indicators.get('strongest_factor', {})
+                                            weakest = reliability_indicators.get('weakest_factor', {})
+                                            
+                                            st.markdown("**En Güçlü Faktör**")
+                                            st.success(f"✅ {strongest.get('factor', 'N/A')}: {strongest.get('score', 0):.1%}")
+                                            
+                                            st.markdown("**En Zayıf Faktör**")
+                                            st.warning(f"⚠️ {weakest.get('factor', 'N/A')}: {weakest.get('score', 0):.1%}")
+                                
+                                # Anomali Tespitleri
+                                anomaly_detections = comprehensive_validation.get('anomaly_detections', [])
+                                if anomaly_detections:
+                                    st.markdown("#### ⚠️ Anomali Tespitleri")
+                                    
+                                    critical_anomalies = [a for a in anomaly_detections if a.get('severity') == 'critical']
+                                    high_anomalies = [a for a in anomaly_detections if a.get('severity') == 'high']
+                                    medium_anomalies = [a for a in anomaly_detections if a.get('severity') == 'medium']
+                                    
+                                    if critical_anomalies:
+                                        st.error("🚨 **Kritik Anomaliler**")
+                                        for anomaly in critical_anomalies:
+                                            st.error(f"❌ {anomaly.get('description', 'Bilinmeyen anomali')}")
+                                    
+                                    if high_anomalies:
+                                        st.warning("🔥 **Yüksek Seviye Anomaliler**")
+                                        for anomaly in high_anomalies:
+                                            st.warning(f"⚠️ {anomaly.get('description', 'Bilinmeyen anomali')}")
+                                    
+                                    if medium_anomalies:
+                                        with st.expander("📊 Orta Seviye Anomaliler"):
+                                            for anomaly in medium_anomalies:
+                                                st.info(f"ℹ️ {anomaly.get('description', 'Bilinmeyen anomali')}")
+                                
+                                # Akıllı Öneriler
+                                recommendations = comprehensive_validation.get('recommendation_system', {})
+                                actionable_insights = smart_confidence.get('actionable_insights', [])
+                                
+                                if recommendations or actionable_insights:
+                                    st.markdown("#### 💡 Akıllı Öneriler ve Eylem Planı")
+                                    
+                                    # Öncelikli aksiyonlar
+                                    priority_actions = recommendations.get('priority_actions', [])
+                                    if priority_actions:
+                                        st.markdown("**🚨 Öncelikli Aksiyonlar**")
+                                        for action in priority_actions:
+                                            priority = action.get('priority', 'medium')
+                                            priority_emoji = "🔴" if priority == 'critical' else "🟡" if priority == 'high' else "🔵"
+                                            st.write(f"{priority_emoji} {action.get('description', 'Aksiyon gerekli')}")
+                                    
+                                    # Veri kalitesi iyileştirmeleri
+                                    data_improvements = recommendations.get('data_quality_improvements', [])
+                                    if data_improvements:
+                                        st.markdown("**📈 Veri Kalitesi İyileştirmeleri**")
+                                        for improvement in data_improvements:
+                                            st.info(f"📊 {improvement.get('description', 'İyileştirme önerisi')}")
+                                    
+                                    # Eylem planı öngörüleri
+                                    if actionable_insights:
+                                        st.markdown("**🎯 Eylem Planı Öngörüleri**")
+                                        for insight in actionable_insights:
+                                            st.success(f"✅ {insight}")
+                                
+                                # Veri Bütünlük Raporu
+                                integrity_check = comprehensive_validation.get('data_integrity_check', {})
+                                if integrity_check:
+                                    with st.expander("🔍 Detaylı Veri Bütünlük Raporu"):
+                                        col1, col2, col3 = st.columns(3)
+                                        
+                                        with col1:
+                                            completeness = integrity_check.get('completeness_score', 0)
+                                            st.metric("Veri Tamlığı", f"{completeness:.1%}")
+                                        
+                                        with col2:
+                                            consistency = integrity_check.get('consistency_score', 0)
+                                            st.metric("Tutarlılık", f"{consistency:.1%}")
+                                        
+                                        with col3:
+                                            format_validity = integrity_check.get('format_validity_score', 0)
+                                            st.metric("Format Geçerliliği", f"{format_validity:.1%}")
+                                        
+                                        # Eksik alanlar
+                                        missing_fields = integrity_check.get('missing_critical_fields', [])
+                                        if missing_fields:
+                                            st.warning(f"Eksik kritik alanlar: {', '.join(missing_fields)}")
+                                        
+                                        # Veri tipi ihlalleri
+                                        type_violations = integrity_check.get('data_type_violations', [])
+                                        if type_violations:
+                                            st.error(f"Veri tipi ihlalleri: {', '.join(type_violations)}")
+                            
+                            else:
+                                st.error(f"Süper doğrulama hatası: {comprehensive_validation.get('error', 'Bilinmeyen hata')}")
+                        
+                        # Standart analiz sonuçları
                         # Ana bilgiler
                         if analysis.get('basic_info'):
                             basic = analysis['basic_info']
@@ -5645,17 +6237,56 @@ def display_professional_analysis():
     with tab2:
         st.markdown("## 📊 Gelişmiş Takım Performansı")
         
-        col1, col2, col3 = st.columns(3)
-        with col1:
-            team_id = st.number_input("Takım ID", min_value=1, value=33, key="team_perf_id")
-        with col2:
-            season = st.number_input("Sezon", min_value=2020, max_value=2025, value=2024, key="team_perf_season")
-        with col3:
-            league_id = st.number_input("Lig ID (opsiyonel)", min_value=1, value=39, key="team_perf_league")
+        col1, col2 = st.columns([2, 1])
         
-        if st.button("📊 Detaylı Performans Analizi Yap", use_container_width=True):
-            with st.spinner("Takım performansı analiz ediliyor..."):
-                performance = analytics.get_advanced_team_performance(team_id, season, league_id)
+        with col1:
+            team_search_perf = st.text_input(
+                "🔍 Takım Adı Yazın", 
+                placeholder="Örnek: Arsenal, Real Madrid...",
+                key="team_search_performance"
+            )
+        
+        with col2:
+            season = st.selectbox("Sezon", [2024, 2023, 2022, 2021], key="team_perf_season")
+        
+        # Takım arama
+        selected_team_id = None
+        if len(team_search_perf) >= 2:
+            with st.spinner("Takımlar aranıyor..."):
+                teams_result = api.search_teams(team_search_perf)
+                
+            if teams_result.status.value == "success" and teams_result.data:
+                st.markdown("### 🎯 Bulunan Takımlar")
+                
+                for i, team_data in enumerate(teams_result.data[:8]):
+                    team_info = team_data.get('team', {})
+                    venue_info = team_data.get('venue', {})
+                    
+                    col1, col2 = st.columns([3, 1])
+                    with col1:
+                        st.markdown(f"**{team_info.get('name', 'Bilinmiyor')}** | {team_info.get('country', 'N/A')} | {venue_info.get('name', 'N/A')}")
+                    
+                    with col2:
+                        if st.button("📊 Analiz Et", key=f"select_team_{i}", use_container_width=True):
+                            selected_team_id = team_info.get('id')
+                            st.session_state['selected_team_performance'] = team_info
+                            st.success(f"Seçildi: {team_info.get('name')}")
+        
+        # Seçili takım varsa analiz yap
+        if 'selected_team_performance' in st.session_state or selected_team_id:
+            if selected_team_id:
+                team_info = next((t.get('team', {}) for t in teams_result.data if t.get('team', {}).get('id') == selected_team_id), None)
+            else:
+                team_info = st.session_state['selected_team_performance']
+                selected_team_id = team_info['id']
+            
+            if team_info:
+                st.markdown("### ✅ Seçili Takım")
+                st.info(f"**{team_info.get('name')}** | {team_info.get('country')} | {season} Sezonu")
+                
+                if st.button("📊 Detaylı Performans Analizi Yap", use_container_width=True, type="primary"):
+                    with st.spinner("Takım performansı analiz ediliyor..."):
+                        performance = analytics.get_advanced_team_performance(selected_team_id, season, 39)
                 
                 if 'error' in performance:
                     st.error(f"Analiz hatası: {performance['error']}")
@@ -5687,135 +6318,320 @@ def display_professional_analysis():
     with tab3:
         st.markdown("## 💰 Detaylı Bahis Analizi")
         
-        fixture_id_odds = st.number_input("Maç ID", min_value=1, value=868584, key="odds_fixture_id")
+        team_search_odds = st.text_input(
+            "🔍 Takım Adı Yazın (Bahis Analizi)", 
+            placeholder="Örnek: Arsenal, Real Madrid...",
+            key="team_search_odds"
+        )
         
-        col1, col2, col3 = st.columns(3)
-        with col1:
-            if st.button("💰 Maç Oranları", use_container_width=True):
-                try:
-                    odds_result = api.get_fixture_odds(fixture_id_odds)
-                    if hasattr(odds_result.status, 'value'):
-                        success = odds_result.status.value == "success"
-                    else:
-                        success = str(odds_result.status).lower() == "success"
+        # Takım arama ve maç seçimi
+        selected_odds_fixture_id = None
+        if len(team_search_odds) >= 2:
+            with st.spinner("Maçlar aranıyor..."):
+                fixtures_result = search_fixtures_by_team(api, team_search_odds)
+                
+            if fixtures_result:
+                st.markdown("### ⚽ Bulunan Maçlar")
+                
+                for i, fixture in enumerate(fixtures_result[:5]):
+                    match_display = format_match_display(fixture)
                     
-                    if success:
-                        st.success("Bahis oranları alındı!")
-                        if odds_result.data:
-                            st.json(odds_result.data[:2])  # İlk 2 sonucu göster
-                    else:
-                        st.error(f"Bahis oranları alınamadı: {odds_result.error or 'Bilinmeyen hata'}")
-                except Exception as e:
-                    st.error(f"API çağrısında hata: {e}")
+                    col1, col2 = st.columns([4, 1])
+                    with col1:
+                        st.markdown(match_display)
+                    
+                    with col2:
+                        if st.button("💰 Bahis Analizi", key=f"select_odds_{i}", use_container_width=True):
+                            selected_odds_fixture_id = fixture.get('fixture', {}).get('id')
+                            st.session_state['selected_odds_fixture'] = fixture
+                            st.success("Maç seçildi!")
         
-        with col2:
-            if st.button("⚽ Over/Under 2.5", use_container_width=True):
-                try:
-                    ou_result = api.get_over_under_odds(fixture_id_odds, 2.5)
-                    if hasattr(ou_result.status, 'value'):
-                        success = ou_result.status.value == "success"
-                    else:
-                        success = str(ou_result.status).lower() == "success"
-                    
-                    if success:
-                        st.success("Over/Under oranları alındı!")
-                        if ou_result.data:
-                            st.json(ou_result.data[:2])
-                    else:
-                        st.error(f"Over/Under oranları alınamadı: {ou_result.error or 'Bilinmeyen hata'}")
-                except Exception as e:
-                    st.error(f"API çağrısında hata: {e}")
+        # Seçili maç varsa bahis analizi yap
+        if 'selected_odds_fixture' in st.session_state or selected_odds_fixture_id:
+            if selected_odds_fixture_id:
+                fixture = next((f for f in fixtures_result if f.get('fixture', {}).get('id') == selected_odds_fixture_id), None)
+            else:
+                fixture = st.session_state['selected_odds_fixture']
+                selected_odds_fixture_id = fixture.get('fixture', {}).get('id')
+            
+            if fixture:
+                st.markdown("### ✅ Seçili Maç")
+                selected_display = format_match_display(fixture)
+                st.info(selected_display)
         
-        with col3:
-            if st.button("🎯 BTTS Oranları", use_container_width=True):
-                try:
-                    btts_result = api.get_both_teams_score_odds(fixture_id_odds)
-                    if hasattr(btts_result.status, 'value'):
-                        success = btts_result.status.value == "success"
-                    else:
-                        success = str(btts_result.status).lower() == "success"
-                    
-                    if success:
-                        st.success("BTTS oranları alındı!")
-                        if btts_result.data:
-                            st.json(btts_result.data[:2])
-                    else:
-                        st.error(f"BTTS oranları alınamadı: {btts_result.error or 'Bilinmeyen hata'}")
-                except Exception as e:
-                    st.error(f"API çağrısında hata: {e}")
+                col1, col2, col3 = st.columns(3)
+                with col1:
+                    if st.button("💰 Maç Oranları", use_container_width=True):
+                        try:
+                            odds_result = api.get_fixture_odds(selected_odds_fixture_id)
+                            if hasattr(odds_result.status, 'value'):
+                                success = odds_result.status.value == "success"
+                            else:
+                                success = str(odds_result.status).lower() == "success"
+                            
+                            if success:
+                                st.success("Bahis oranları alındı!")
+                                if odds_result.data:
+                                    st.json(odds_result.data[:2])  # İlk 2 sonucu göster
+                                st.error(f"Bahis oranları alınamadı: {odds_result.error or 'Bilinmeyen hata'}")
+                        except Exception as e:
+                            st.error(f"API çağrısında hata: {e}")
+        
+                with col2:
+                    if st.button("⚽ Over/Under 2.5", use_container_width=True):
+                        try:
+                            ou_result = api.get_over_under_odds(selected_odds_fixture_id, 2.5)
+                            if hasattr(ou_result.status, 'value'):
+                                success = ou_result.status.value == "success"
+                            else:
+                                success = str(ou_result.status).lower() == "success"
+                            
+                            if success:
+                                st.success("Over/Under oranları alındı!")
+                                if ou_result.data:
+                                    st.json(ou_result.data[:2])
+                            else:
+                                st.error(f"Over/Under oranları alınamadı: {ou_result.error or 'Bilinmeyen hata'}")
+                        except Exception as e:
+                            st.error(f"API çağrısında hata: {e}")
+        
+                with col3:
+                    if st.button("🎯 BTTS Oranları", use_container_width=True):
+                        try:
+                            btts_result = api.get_both_teams_score_odds(selected_odds_fixture_id)
+                            if hasattr(btts_result.status, 'value'):
+                                success = btts_result.status.value == "success"
+                            else:
+                                success = str(btts_result.status).lower() == "success"
+                            
+                            if success:
+                                st.success("BTTS oranları alındı!")
+                                if btts_result.data:
+                                    st.json(btts_result.data[:2])
+                            else:
+                                st.error(f"BTTS oranları alınamadı: {btts_result.error or 'Bilinmeyen hata'}")
+                        except Exception as e:
+                            st.error(f"API çağrısında hata: {e}")
     
     with tab4:
         st.markdown("## 🏟️ Saha & Hava Durumu Analizi")
         
+        team_search_venue = st.text_input(
+            "🔍 Takım Adı Yazın (Stadyum Analizi)", 
+            placeholder="Örnek: Arsenal, Real Madrid...",
+            key="team_search_venue"
+        )
+        
+        # Takım arama ve maç seçimi
+        selected_venue_fixture_id = None
+        selected_venue_team_id = None
+        
+        if len(team_search_venue) >= 2:
+            with st.spinner("Takım ve maçlar aranıyor..."):
+                # Takım ara
+                teams_result = api.search_teams(team_search_venue)
+                fixtures_result = search_fixtures_by_team(api, team_search_venue)
+            
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                st.markdown("### 🎯 Takımlar")
+                if teams_result.status.value == "success" and teams_result.data:
+                    for i, team_data in enumerate(teams_result.data[:3]):
+                        team_info = team_data.get('team', {})
+                        venue_info = team_data.get('venue', {})
+                        
+                        st.markdown(f"**{team_info.get('name', 'Bilinmiyor')}** | {venue_info.get('name', 'N/A')}")
+                        
+                        if st.button("🏟️ Stadyum Bilgisi", key=f"venue_team_{i}", use_container_width=True):
+                            selected_venue_team_id = team_info.get('id')
+                            st.session_state['selected_venue_team'] = team_info
+                            st.success(f"Takım seçildi: {team_info.get('name')}")
+            
+            with col2:
+                st.markdown("### ⚽ Maçlar")
+                if fixtures_result:
+                    for i, fixture in enumerate(fixtures_result[:3]):
+                        match_display = format_match_display(fixture)
+                        
+                        col_a, col_b = st.columns([3, 1])
+                        with col_a:
+                            st.markdown(match_display)
+                        with col_b:
+                            if st.button("🌤️ Hava", key=f"venue_fixture_{i}", use_container_width=True):
+                                selected_venue_fixture_id = fixture.get('fixture', {}).get('id')
+                                st.session_state['selected_venue_fixture'] = fixture
+                                st.success("Maç seçildi!")
+        
+        # Analizler
         col1, col2 = st.columns(2)
+        
         with col1:
-            venue_id = st.number_input("Stadyum ID", min_value=1, value=556, key="venue_id")
-            if st.button("🏟️ Stadyum Analizi", use_container_width=True):
-                weather_analysis = api.get_weather_impact_analysis(fixture_id_odds)
-                pitch_analysis = api.get_pitch_condition_analysis(venue_id, "2024-10-26")
+            if 'selected_venue_fixture' in st.session_state or selected_venue_fixture_id:
+                fixture_id = selected_venue_fixture_id or st.session_state['selected_venue_fixture'].get('fixture', {}).get('id')
                 
-                st.markdown("### 🌤️ Hava Durumu Etkisi")
-                st.json(weather_analysis)
-                
-                st.markdown("### 🏟️ Saha Koşulları")
-                st.json(pitch_analysis)
+                if st.button("�️ Stadyum Analizi", use_container_width=True, type="primary"):
+                    weather_analysis = api.get_weather_impact_analysis(fixture_id)
+                    
+                    st.markdown("### �️ Hava Durumu Etkisi")
+                    st.json(weather_analysis)
         
         with col2:
-            team_id_venue = st.number_input("Takım ID", min_value=1, value=33, key="venue_team_id")
-            if st.button("🏠 Takım Stadyumu", use_container_width=True):
-                try:
-                    venue_result = api.get_team_venue(team_id_venue)
-                    if hasattr(venue_result.status, 'value'):
-                        success = venue_result.status.value == "success"
-                    else:
-                        success = str(venue_result.status).lower() == "success"
-                    
-                    if success:
-                        st.success("Stadyum bilgileri alındı!")
-                        if venue_result.data:
-                            st.json(venue_result.data)
-                    else:
-                        st.error(f"Stadyum bilgileri alınamadı: {venue_result.error or 'Bilinmeyen hata'}")
-                except Exception as e:
-                    st.error(f"API çağrısında hata: {e}")
+            if 'selected_venue_team' in st.session_state or selected_venue_team_id:
+                team_id = selected_venue_team_id or st.session_state['selected_venue_team'].get('id')
+                
+                if st.button("🏠 Takım Stadyumu", use_container_width=True, type="primary"):
+                    try:
+                        venue_result = api.get_team_venue(team_id)
+                        if hasattr(venue_result.status, 'value'):
+                            success = venue_result.status.value == "success"
+                        else:
+                            success = str(venue_result.status).lower() == "success"
+                        
+                        if success:
+                            st.success("Stadyum bilgileri alındı!")
+                            if venue_result.data:
+                                st.json(venue_result.data)
+                        else:
+                            st.error(f"Stadyum bilgileri alınamadı: {venue_result.error or 'Bilinmeyen hata'}")
+                    except Exception as e:
+                        st.error(f"API çağrısında hata: {e}")
     
     with tab5:
         st.markdown("## 👥 Oyuncu Etkisi Analizi")
         
-        lineup_fixture_id = st.number_input("Maç ID", min_value=1, value=868584, key="lineup_fixture_id")
+        team_search_lineup = st.text_input(
+            "🔍 Takım Adı Yazın (Kadro Analizi)", 
+            placeholder="Örnek: Arsenal, Real Madrid...",
+            key="team_search_lineup"
+        )
         
-        if st.button("👥 Kadro Gücü Analizi", use_container_width=True):
-            lineup_analysis = api.get_lineup_strength_analysis(lineup_fixture_id)
-            
-            st.markdown("### 📋 Kadro Analizi")
-            st.json(lineup_analysis)
-            
-            # Gerçek lineups API'sini çağır
-            try:
-                lineups_result = api.get_fixture_lineups(lineup_fixture_id)
-                if hasattr(lineups_result.status, 'value'):
-                    success = lineups_result.status.value == "success"
-                else:
-                    success = str(lineups_result.status).lower() == "success"
+        # Takım arama ve maç seçimi
+        selected_lineup_fixture_id = None
+        if len(team_search_lineup) >= 2:
+            with st.spinner("Maçlar aranıyor..."):
+                fixtures_result = search_fixtures_by_team(api, team_search_lineup)
                 
-                if success:
-                    st.markdown("### 🔄 Gerçek Kadro Verileri")
-                    st.success("Kadro verileri alındı!")
-                    if lineups_result.data:
-                        st.json(lineups_result.data)
-                else:
-                    st.warning("Henüz kadro açıklanmamış.")
-            except Exception as e:
-                st.error(f"Kadro verilerinde hata: {e}")
+            if fixtures_result:
+                st.markdown("### ⚽ Bulunan Maçlar")
+                
+                for i, fixture in enumerate(fixtures_result[:5]):
+                    match_display = format_match_display(fixture)
+                    
+                    col1, col2 = st.columns([4, 1])
+                    with col1:
+                        st.markdown(match_display)
+                    
+                    with col2:
+                        if st.button("👥 Kadro", key=f"select_lineup_{i}", use_container_width=True):
+                            selected_lineup_fixture_id = fixture.get('fixture', {}).get('id')
+                            st.session_state['selected_lineup_fixture'] = fixture
+                            st.success("Maç seçildi!")
+        
+        # Seçili maç varsa kadro analizi yap
+        if 'selected_lineup_fixture' in st.session_state or selected_lineup_fixture_id:
+            if selected_lineup_fixture_id:
+                fixture = next((f for f in fixtures_result if f.get('fixture', {}).get('id') == selected_lineup_fixture_id), None)
+            else:
+                fixture = st.session_state['selected_lineup_fixture']
+                selected_lineup_fixture_id = fixture.get('fixture', {}).get('id')
+            
+            if fixture:
+                st.markdown("### ✅ Seçili Maç")
+                selected_display = format_match_display(fixture)
+                st.info(selected_display)
+                
+                if st.button("👥 Kadro Gücü Analizi", use_container_width=True, type="primary"):
+                    lineup_analysis = api.get_lineup_strength_analysis(selected_lineup_fixture_id)
+                    
+                    st.markdown("### 📋 Kadro Analizi")
+                    st.json(lineup_analysis)
+                    
+                    # Gerçek lineups API'sini çağır
+                    try:
+                        lineups_result = api.get_fixture_lineups(selected_lineup_fixture_id)
+                        if hasattr(lineups_result.status, 'value'):
+                            success = lineups_result.status.value == "success"
+                        else:
+                            success = str(lineups_result.status).lower() == "success"
+                        
+                        if success:
+                            st.markdown("### 🔄 Gerçek Kadro Verileri")
+                            st.success("Kadro verileri alındı!")
+                            if lineups_result.data:
+                                st.json(lineups_result.data)
+                        else:
+                            st.warning("Henüz kadro açıklanmamış.")
+                    except Exception as e:
+                        st.error(f"Kadro verilerinde hata: {e}")
     
     with tab6:
         st.markdown("## 🔴 Canlı Maç Zekası")
         
-        live_fixture_id = st.number_input("Canlı Maç ID", min_value=1, value=868584, key="live_fixture_id")
+        team_search_live = st.text_input(
+            "🔍 Takım Adı Yazın (Canlı Analiz)", 
+            placeholder="Örnek: Arsenal, Real Madrid...",
+            key="team_search_live"
+        )
         
-        if st.button("🧠 Canlı Analiz Yap", use_container_width=True):
-            with st.spinner("Canlı maç analiz ediliyor..."):
-                live_intelligence = analytics.get_live_match_intelligence(live_fixture_id)
+        # Takım arama ve maç seçimi
+        selected_live_fixture_id = None
+        if len(team_search_live) >= 2:
+            with st.spinner("Canlı maçlar aranıyor..."):
+                fixtures_result = search_fixtures_by_team(api, team_search_live)
+                
+            if fixtures_result:
+                st.markdown("### ⚽ Bulunan Maçlar")
+                
+                # Sadece canlı olan maçları göster
+                live_matches = [f for f in fixtures_result if f.get('fixture', {}).get('status', {}).get('short') in ['1H', '2H', 'HT', 'ET', 'BT']]
+                
+                if live_matches:
+                    for i, fixture in enumerate(live_matches[:3]):
+                        match_display = format_match_display(fixture)
+                        
+                        col1, col2 = st.columns([4, 1])
+                        with col1:
+                            st.markdown(match_display)
+                        
+                        with col2:
+                            if st.button("🔴 Canlı", key=f"select_live_{i}", use_container_width=True):
+                                selected_live_fixture_id = fixture.get('fixture', {}).get('id')
+                                st.session_state['selected_live_fixture'] = fixture
+                                st.success("Canlı maç seçildi!")
+                else:
+                    st.info("Bu takımın şu anda canlı maçı yok.")
+                    
+                    # Tüm yakın maçları göster
+                    for i, fixture in enumerate(fixtures_result[:3]):
+                        match_display = format_match_display(fixture)
+                        
+                        col1, col2 = st.columns([4, 1])
+                        with col1:
+                            st.markdown(match_display)
+                        
+                        with col2:
+                            if st.button("📊 Analiz", key=f"select_upcoming_{i}", use_container_width=True):
+                                selected_live_fixture_id = fixture.get('fixture', {}).get('id')
+                                st.session_state['selected_live_fixture'] = fixture
+                                st.success("Maç seçildi!")
+        
+        # Seçili maç varsa canlı analiz yap
+        if 'selected_live_fixture' in st.session_state or selected_live_fixture_id:
+            if selected_live_fixture_id:
+                fixture = next((f for f in fixtures_result if f.get('fixture', {}).get('id') == selected_live_fixture_id), None)
+            else:
+                fixture = st.session_state['selected_live_fixture']
+                selected_live_fixture_id = fixture.get('fixture', {}).get('id')
+            
+            if fixture:
+                st.markdown("### ✅ Seçili Maç")
+                selected_display = format_match_display(fixture)
+                st.info(selected_display)
+                
+                if st.button("🧠 Canlı Analiz Yap", use_container_width=True, type="primary"):
+                    with st.spinner("Canlı maç analiz ediliyor..."):
+                        live_intelligence = analytics.get_live_match_intelligence(selected_live_fixture_id)
                 
                 if 'error' in live_intelligence:
                     st.error(f"Analiz hatası: {live_intelligence['error']}")
@@ -5845,9 +6661,322 @@ def display_professional_analysis():
                     st.info(f"Mevcut Momentum: {momentum.get('current_momentum', 'Dengeli')}")
                     
                     # Canlı yorumlar
-                    commentary = api.get_live_commentary(live_fixture_id)
+                    commentary = api.get_live_commentary(selected_live_fixture_id)
                     st.markdown("### 💬 Canlı Yorumlar")
                     st.json(commentary)
+    
+    with tab7:
+        st.markdown("## ⚡ Gerçek Zamanlı Analiz Merkezi")
+        st.markdown("*Canlı maçlar için sürekli güncellenen profesyonel analiz sistemi*")
+        
+        # Gerçek zamanlı analyzer başlat
+        if 'real_time_analyzer' not in st.session_state:
+            st.session_state.real_time_analyzer = RealTimeAnalyzer(api)
+        
+        rt_analyzer = st.session_state.real_time_analyzer
+        
+        col1, col2 = st.columns([2, 1])
+        
+        with col1:
+            team_search_rt = st.text_input(
+                "🔍 Canlı Maç Ara", 
+                placeholder="Örnek: Arsenal, Real Madrid...",
+                key="team_search_realtime"
+            )
+        
+        with col2:
+            auto_refresh = st.checkbox("🔄 Otomatik Yenile", value=False, key="auto_refresh_rt")
+            refresh_interval = st.selectbox("Yenileme Aralığı", [5, 10, 15, 30, 60], index=2, key="refresh_interval")
+        
+        # Takım arama ve canlı maç seçimi
+        selected_rt_fixture_id = None
+        if len(team_search_rt) >= 2:
+            with st.spinner("Canlı maçlar aranıyor..."):
+                fixtures_result = search_fixtures_by_team(api, team_search_rt)
+                
+            if fixtures_result:
+                # Sadece canlı maçları filtrele
+                live_fixtures = [f for f in fixtures_result if f.get('fixture', {}).get('status', {}).get('short') in 
+                               ['1H', '2H', 'HT', 'ET', 'BT', 'LIVE']]
+                
+                if live_fixtures:
+                    st.markdown("### 🔴 Canlı Maçlar")
+                    
+                    for i, fixture in enumerate(live_fixtures[:3]):
+                        match_display = format_match_display(fixture)
+                        
+                        col1, col2, col3 = st.columns([3, 1, 1])
+                        with col1:
+                            st.markdown(match_display)
+                        
+                        with col2:
+                            if st.button("⚡ Analizi Başlat", key=f"start_rt_{i}", use_container_width=True):
+                                selected_rt_fixture_id = fixture.get('fixture', {}).get('id')
+                                st.session_state['selected_rt_fixture'] = fixture
+                                
+                                # Gerçek zamanlı analizi başlat
+                                with st.spinner("Gerçek zamanlı analiz başlatılıyor..."):
+                                    result = rt_analyzer.start_real_time_analysis(selected_rt_fixture_id)
+                                    
+                                if result['status'] == 'analysis_started':
+                                    st.session_state['rt_analysis_active'] = True
+                                    st.session_state['rt_fixture_id'] = selected_rt_fixture_id
+                                    st.success("✅ Gerçek zamanlı analiz başlatıldı!")
+                                else:
+                                    st.error(f"Analiz başlatılamadı: {result.get('message', 'Bilinmeyen hata')}")
+                        
+                        with col3:
+                            if st.button("📊 Statik Analiz", key=f"static_rt_{i}", use_container_width=True):
+                                selected_rt_fixture_id = fixture.get('fixture', {}).get('id')
+                                st.session_state['selected_rt_fixture'] = fixture
+                                st.session_state['show_static_analysis'] = True
+                else:
+                    st.info("Bu takımın şu anda canlı maçı bulunmuyor.")
+                    
+                    # Yakında başlayacak maçları göster
+                    upcoming_fixtures = [f for f in fixtures_result if f.get('fixture', {}).get('status', {}).get('short') == 'NS'][:3]
+                    
+                    if upcoming_fixtures:
+                        st.markdown("### ⏰ Yakında Başlayacak Maçlar")
+                        for i, fixture in enumerate(upcoming_fixtures):
+                            match_display = format_match_display(fixture)
+                            st.info(match_display)
+        
+        # Gerçek zamanlı analiz sonuçları
+        if st.session_state.get('rt_analysis_active', False):
+            fixture_id = st.session_state.get('rt_fixture_id')
+            
+            st.markdown("### 🔥 Aktif Gerçek Zamanlı Analiz")
+            
+            # Kontrol paneli
+            col1, col2, col3 = st.columns(3)
+            
+            with col1:
+                if st.button("🔄 Manuel Güncelle", use_container_width=True):
+                    with st.spinner("Veriler güncelleniyor..."):
+                        updates = rt_analyzer.streamer.get_live_updates(fixture_id)
+                        if updates['status'] == 'success':
+                            st.session_state['last_rt_update'] = updates
+                            st.success("Veriler güncellendi!")
+                        else:
+                            st.error("Güncelleme başarısız!")
+            
+            with col2:
+                if st.button("⏹️ Analizi Durdur", use_container_width=True):
+                    rt_analyzer.streamer.stop_live_stream(fixture_id)
+                    st.session_state['rt_analysis_active'] = False
+                    st.session_state.pop('rt_fixture_id', None)
+                    st.session_state.pop('last_rt_update', None)
+                    st.success("Analiz durduruldu!")
+                    st.experimental_rerun()
+            
+            with col3:
+                stream_info = rt_analyzer.streamer.get_active_streams()
+                st.metric("Aktif Stream Sayısı", stream_info['active_count'])
+            
+            # Son güncelleme verilerini göster
+            if 'last_rt_update' in st.session_state:
+                update_data = st.session_state['last_rt_update']
+                
+                if update_data['status'] == 'success':
+                    live_data = update_data['data']
+                    changes = update_data.get('changes', [])
+                    
+                    # Maç durumu kartı
+                    fixture_info = live_data.get('fixture_info', {})
+                    status_info = fixture_info.get('fixture', {}).get('status', {})
+                    goals_info = fixture_info.get('goals', {})
+                    
+                    st.markdown("### 📋 Canlı Durum")
+                    
+                    col1, col2, col3, col4 = st.columns(4)
+                    with col1:
+                        st.metric("Durum", status_info.get('long', 'Bilinmiyor'))
+                    with col2:
+                        st.metric("Süre", f"{status_info.get('elapsed', 0)}'" if status_info.get('elapsed') else 'N/A')
+                    with col3:
+                        home_score = goals_info.get('home', 0) or 0
+                        away_score = goals_info.get('away', 0) or 0
+                        st.metric("Skor", f"{home_score} - {away_score}")
+                    with col4:
+                        st.metric("Son Güncelleme", update_data.get('last_update', '').split('T')[1][:8] if 'T' in update_data.get('last_update', '') else 'N/A')
+                    
+                    # Değişiklikler
+                    if changes:
+                        st.markdown("### 🚨 Son Değişiklikler")
+                        for change in changes[-5:]:  # Son 5 değişikliği göster
+                            change_type = change.get('type', '')
+                            
+                            if change_type == 'score_change':
+                                old_score = change.get('old_score', {})
+                                new_score = change.get('new_score', {})
+                                st.success(f"⚽ GOL! {old_score.get('home', 0)}-{old_score.get('away', 0)} → {new_score.get('home', 0)}-{new_score.get('away', 0)}")
+                            
+                            elif change_type == 'new_event':
+                                event = change.get('event', {})
+                                event_type = event.get('type', 'Olay')
+                                team_name = event.get('team', {}).get('name', 'Takım')
+                                player_name = event.get('player', {}).get('name', 'Oyuncu')
+                                time_elapsed = event.get('time', {}).get('elapsed', 'N/A')
+                                st.info(f"📢 {time_elapsed}' - {event_type}: {player_name} ({team_name})")
+                            
+                            elif change_type == 'time_update':
+                                new_time = change.get('new_time', 'N/A')
+                                st.info(f"⏱️ Süre güncellendi: {new_time}'")
+                    
+                    # Performans analizi yapabiliyorsa göster
+                    with st.spinner("Canlı analiz hesaplanıyor..."):
+                        analysis = rt_analyzer._perform_live_analysis(live_data)
+                    
+                    if 'error' not in analysis:
+                        # Match State
+                        match_state = analysis.get('match_state', {})
+                        
+                        st.markdown("### 📊 Maç Analizi")
+                        
+                        col1, col2, col3 = st.columns(3)
+                        with col1:
+                            st.markdown("**Maç Fazı**")
+                            phase = match_state.get('match_phase', 'unknown')
+                            phase_names = {
+                                'early_first_half': 'İlk Yarı Başı',
+                                'late_first_half': 'İlk Yarı Sonu',
+                                'early_second_half': 'İkinci Yarı Başı',
+                                'late_second_half': 'İkinci Yarı Sonu',
+                                'final_minutes': 'Son Dakikalar'
+                            }
+                            st.info(phase_names.get(phase, phase))
+                        
+                        with col2:
+                            st.markdown("**Maç Yoğunluğu**")
+                            intensity = match_state.get('intensity', 'medium')
+                            intensity_colors = {'low': '🟢', 'medium': '🟡', 'high': '🔴'}
+                            st.info(f"{intensity_colors.get(intensity, '⚫')} {intensity.title()}")
+                        
+                        with col3:
+                            st.markdown("**Toplam Olay**")
+                            st.metric("", match_state.get('total_events', 0))
+                        
+                        # Momentum Analizi
+                        momentum = analysis.get('momentum', {})
+                        if momentum:
+                            st.markdown("### 📈 Momentum Analizi")
+                            
+                            col1, col2 = st.columns(2)
+                            with col1:
+                                momentum_direction = momentum.get('current_momentum', 'neutral')
+                                momentum_colors = {
+                                    'positive': '🟢 Pozitif',
+                                    'negative': '🔴 Negatif', 
+                                    'neutral': '⚫ Dengeli'
+                                }
+                                st.info(f"Momentum: {momentum_colors.get(momentum_direction, momentum_direction)}")
+                            
+                            with col2:
+                                momentum_score = momentum.get('momentum_score', 0)
+                                st.metric("Momentum Puanı", f"{momentum_score:+.1f}")
+                            
+                            # Momentum faktörleri
+                            factors = momentum.get('momentum_factors', [])
+                            if factors:
+                                st.markdown("**Momentum Etkenleri:** " + ", ".join(factors))
+                        
+                        # Canlı Tahminler
+                        predictions = analysis.get('predictions', {})
+                        if predictions:
+                            st.markdown("### 🎯 Güncellenmiş Tahminler")
+                            
+                            win_probs = predictions.get('win_probabilities', {})
+                            if win_probs:
+                                col1, col2, col3, col4 = st.columns(4)
+                                
+                                with col1:
+                                    st.metric("Ev Sahibi", f"{win_probs.get('home', 0):.1%}")
+                                with col2:
+                                    st.metric("Beraberlik", f"{win_probs.get('draw', 0):.1%}")
+                                with col3:
+                                    st.metric("Deplasman", f"{win_probs.get('away', 0):.1%}")
+                                with col4:
+                                    confidence = predictions.get('confidence_level', 0)
+                                    st.metric("Güvenilirlik", f"{confidence:.1%}")
+                            
+                            # Diğer tahminler
+                            col1, col2 = st.columns(2)
+                            with col1:
+                                next_goal = predictions.get('next_goal_probability', 0)
+                                st.metric("Sonraki Gol", f"{next_goal:.1%}")
+                            with col2:
+                                over_25 = predictions.get('over_2_5_probability', 0)
+                                st.metric("2.5 Üst", f"{over_25:.1%}")
+                        
+                        # Risk Analizi
+                        risk_analysis = analysis.get('risk_analysis', {})
+                        if risk_analysis:
+                            st.markdown("### ⚠️ Risk Analizi")
+                            
+                            risk_level = risk_analysis.get('risk_level', 'low')
+                            risk_colors = {'low': '🟢', 'medium': '🟡', 'high': '🔴'}
+                            
+                            col1, col2 = st.columns(2)
+                            with col1:
+                                st.info(f"Risk Seviyesi: {risk_colors.get(risk_level)} {risk_level.title()}")
+                            with col2:
+                                risk_score = risk_analysis.get('risk_score', 0)
+                                st.metric("Risk Puanı", risk_score)
+                            
+                            # Risk faktörleri ve öneriler
+                            risk_factors = risk_analysis.get('risk_factors', [])
+                            if risk_factors:
+                                st.markdown("**Risk Faktörleri:** " + ", ".join(risk_factors))
+                            
+                            recommendation = risk_analysis.get('recommended_action', '')
+                            if recommendation:
+                                st.info(f"💡 **Öneri:** {recommendation}")
+                    
+                    else:
+                        st.error(f"Analiz hatası: {analysis.get('error')}")
+            
+            # Otomatik yenileme
+            if auto_refresh:
+                st.markdown(f"🔄 **Otomatik yenileme aktif** - Her {refresh_interval} saniyede bir güncelleniyor")
+                # JavaScript ile otomatik yenileme
+                st.markdown(f"""
+                <script>
+                setTimeout(function(){{
+                    window.location.reload();
+                }}, {refresh_interval * 1000});
+                </script>
+                """, unsafe_allow_html=True)
+        
+        # Statik analiz göster
+        elif st.session_state.get('show_static_analysis', False):
+            fixture = st.session_state.get('selected_rt_fixture')
+            if fixture:
+                st.markdown("### 📊 Statik Maç Analizi")
+                
+                selected_display = format_match_display(fixture)
+                st.info(selected_display)
+                
+                fixture_id = fixture.get('fixture', {}).get('id')
+                
+                # Temel bilgileri göster
+                with st.spinner("Maç verileri alınıyor..."):
+                    live_data = rt_analyzer.streamer._fetch_live_data(fixture_id)
+                
+                if live_data:
+                    analysis = rt_analyzer._perform_live_analysis(live_data)
+                    
+                    if 'error' not in analysis:
+                        # Basit analiz gösterimi (gerçek zamanlıdan farklı olarak statik)
+                        st.json(analysis)
+                    else:
+                        st.error(f"Analiz hatası: {analysis['error']}")
+                else:
+                    st.error("Maç verisi alınamadı")
+                
+                if st.button("🔙 Geri Dön"):
+                    st.session_state.pop('show_static_analysis', False)
+                    st.experimental_rerun()
 
 if __name__ == "__main__":
     main()
