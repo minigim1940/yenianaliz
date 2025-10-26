@@ -1823,6 +1823,12 @@ def display_ai_predictions_tab(fixture_id: int):
                 if prediction_data:
                     predictions = prediction_data.get('predictions', {})
                     
+                    # Debug: Gelen veri yapısını kontrol et
+                    if not isinstance(predictions, dict):
+                        st.warning(f"⚠️ Beklenmeyen veri formatı: {type(predictions)}")
+                        st.json(predictions) # Gelen veriyi göster
+                        return
+                    
                     # Ana tahmin bilgileri
                     st.markdown("### 🎯 Ana Tahmin")
                     
@@ -1877,10 +1883,36 @@ def display_ai_predictions_tab(fixture_id: int):
                         st.markdown("### ⚽ Gol Tahminleri")
                         col1, col2 = st.columns(2)
                         
-                        with col1:
-                            st.metric("🏠 Ev Sahibi Beklenen Gol", goals.get('home', 'N/A'))
-                        with col2:
-                            st.metric("✈️ Deplasman Beklenen Gol", goals.get('away', 'N/A'))
+                        # goals'un dictionary olduğunu kontrol et
+                        if isinstance(goals, dict):
+                            with col1:
+                                home_goals = goals.get('home', 'N/A')
+                                try:
+                                    if isinstance(home_goals, (int, float)):
+                                        st.metric("🏠 Ev Sahibi Beklenen Gol", f"{home_goals:.1f}")
+                                    elif isinstance(home_goals, str) and home_goals != 'N/A':
+                                        home_float = float(home_goals)
+                                        st.metric("🏠 Ev Sahibi Beklenen Gol", f"{home_float:.1f}")
+                                    else:
+                                        st.metric("🏠 Ev Sahibi Beklenen Gol", home_goals)
+                                except (ValueError, TypeError):
+                                    st.metric("🏠 Ev Sahibi Beklenen Gol", home_goals)
+                                    
+                            with col2:
+                                away_goals = goals.get('away', 'N/A')
+                                try:
+                                    if isinstance(away_goals, (int, float)):
+                                        st.metric("✈️ Deplasman Beklenen Gol", f"{away_goals:.1f}")
+                                    elif isinstance(away_goals, str) and away_goals != 'N/A':
+                                        away_float = float(away_goals)
+                                        st.metric("✈️ Deplasman Beklenen Gol", f"{away_float:.1f}")
+                                    else:
+                                        st.metric("✈️ Deplasman Beklenen Gol", away_goals)
+                                except (ValueError, TypeError):
+                                    st.metric("✈️ Deplasman Beklenen Gol", away_goals)
+                        else:
+                            # Eğer goals string ise
+                            st.write(f"**Gol Tahminleri:** {goals}")
                     
                     # Tavsiye
                     advice = predictions.get('advice', 'Tavsiye mevcut değil')
@@ -1891,9 +1923,32 @@ def display_ai_predictions_tab(fixture_id: int):
                     under_over = predictions.get('under_over', {})
                     if under_over:
                         st.markdown("### 📈 Alt/Üst Tahminleri")
-                        st.write(f"**Alt:** {under_over.get('under', 'N/A')}")
-                        st.write(f"**Üst:** {under_over.get('over', 'N/A')}")
-                        st.write(f"**Gol Eşiği:** {under_over.get('goals', 'N/A')}")
+                        
+                        # under_over'ın dictionary olduğundan emin ol
+                        if isinstance(under_over, dict):
+                            st.write(f"**Alt:** {under_over.get('under', 'N/A')}")
+                            st.write(f"**Üst:** {under_over.get('over', 'N/A')}")
+                            st.write(f"**Gol Eşiği:** {under_over.get('goals', 'N/A')}")
+                        else:
+                            # Eğer string ise direkt göster
+                            st.write(f"**Alt/Üst Tahmini:** {under_over}")
+                        
+                    # Beklenen toplam gol
+                    total_goals = predictions.get('total_goals', None)
+                    if total_goals:
+                        st.markdown("### 🎯 Toplam Gol Tahmini")
+                        try:
+                            # Sayısal değeri kontrol et
+                            if isinstance(total_goals, (int, float)):
+                                st.metric("🥅 Beklenen Toplam Gol", f"{total_goals:.1f}")
+                            elif isinstance(total_goals, str):
+                                # String ise float'a çevirmeye çalış
+                                total_float = float(total_goals)
+                                st.metric("🥅 Beklenen Toplam Gol", f"{total_float:.1f}")
+                            else:
+                                st.write(f"**Toplam Gol:** {total_goals}")
+                        except (ValueError, TypeError):
+                            st.write(f"**Toplam Gol:** {total_goals}")
                 
                 else:
                     st.info("AI tahmin verisi bulunamadı")
