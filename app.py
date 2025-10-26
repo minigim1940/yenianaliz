@@ -363,7 +363,11 @@ def save_user_favorite_leagues(username: str, leagues: List[str]):
         if 'usernames' not in config['credentials']:
             config['credentials']['usernames'] = {}
         
-        if username in config['credentials']['usernames']:
+        # Development user için özel kontrol
+        if username == 'dev_user':
+            # Dev user için config'e yazmayız, sadece session_state'de tutarız
+            st.session_state['dev_favorite_leagues'] = leagues
+        elif username in config['credentials']['usernames']:
             config['credentials']['usernames'][username]['favorite_leagues'] = leagues
             
             with open('config.yaml', 'w', encoding='utf-8') as f:
@@ -379,6 +383,10 @@ def load_user_favorite_leagues(username: str) -> Optional[List[str]]:
     try:
         with open('config.yaml', 'r', encoding='utf-8') as f:
             config = yaml.safe_load(f)
+        
+        # Development user için özel kontrol
+        if username == 'dev_user':
+            return st.session_state.get('dev_favorite_leagues', None)
         
         if 'credentials' in config and 'usernames' in config['credentials']:
             if username in config['credentials']['usernames']:
@@ -4737,7 +4745,12 @@ def main():
 
         with st.sidebar.expander("👤 Hesap Ayarları", expanded=False):
             st.write(f"**👤 Kullanıcı Adı:** {username}")
-            st.write(f"**📧 E-posta:** {config['credentials']['usernames'][username].get('email', 'N/A')}")
+            
+            # Development user için özel email kontrolü
+            if username == 'dev_user':
+                st.write(f"**📧 E-posta:** developer@localhost.dev")
+            else:
+                st.write(f"**📧 E-posta:** {config['credentials']['usernames'][username].get('email', 'N/A')}")
             
             st.markdown("#### 🔑 Parola Değiştir")
             new_password = st.text_input("Yeni Parola", type="password", key="new_pw")
@@ -4755,8 +4768,15 @@ def main():
                         st.error("❌ Güncelleme başarısız.")
             
             st.markdown("#### 📧 E-posta Değiştir")
-            current_email = config['credentials']['usernames'][username].get('email', '')
-            new_email = st.text_input("Yeni E-posta", value=current_email, key="new_email")
+            
+            # Development user için özel email kontrolü
+            if username == 'dev_user':
+                current_email = 'developer@localhost.dev'
+                st.info("Development mode - E-posta değiştirilemez")
+            else:
+                current_email = config['credentials']['usernames'][username].get('email', '')
+            
+            new_email = st.text_input("Yeni E-posta", value=current_email, key="new_email", disabled=(username == 'dev_user'))
             if st.button("E-postayı Güncelle", use_container_width=True, key="update_email_btn"):
                 if not new_email:
                     st.warning("E-posta alanı boş olamaz.")
