@@ -445,6 +445,202 @@ class APIFootballV3:
         """
         return self._make_request("countries")
     
+    # ========================================================================
+    # COACHES ENDPOINTS
+    # ========================================================================
+    
+    def get_coaches(self, team_id: Optional[int] = None, search: Optional[str] = None) -> APIResponse:
+        """
+        Get coaches information
+        
+        Args:
+            team_id: Filter by team ID
+            search: Search coaches by name
+            
+        Returns:
+            APIResponse with coaches data including:
+            - id, name, firstname, lastname
+            - age, birth (date, place, country)
+            - nationality, height, weight
+            - photo
+        """
+        params = {}
+        if team_id:
+            params['team'] = team_id
+        if search:
+            params['search'] = search
+            
+        return self._make_request("coachs", params)
+    
+    # ========================================================================
+    # VENUES ENDPOINTS  
+    # ========================================================================
+    
+    def get_venues(self, venue_id: Optional[int] = None, 
+                   name: Optional[str] = None,
+                   city: Optional[str] = None,
+                   country: Optional[str] = None) -> APIResponse:
+        """
+        Get venue/stadium information
+        
+        Args:
+            venue_id: Specific venue ID
+            name: Search by venue name
+            city: Filter by city
+            country: Filter by country
+            
+        Returns:
+            APIResponse with venue data including:
+            - id, name, address, city, country
+            - capacity, surface, image
+        """
+        params = {}
+        if venue_id:
+            params['id'] = venue_id
+        if name:
+            params['name'] = name
+        if city:
+            params['city'] = city
+        if country:
+            params['country'] = country
+            
+        return self._make_request("venues", params)
+    
+    # ========================================================================
+    # PREDICTIONS ENDPOINTS
+    # ========================================================================
+    
+    def get_predictions(self, fixture_id: int) -> APIResponse:
+        """
+        Get match predictions
+        
+        Args:
+            fixture_id: Fixture ID to get predictions for
+            
+        Returns:
+            APIResponse with predictions including:
+            - winner (id, name, comment)
+            - win_or_draw (bool)  
+            - under_over (under, over, goals)
+            - goals (home, away)
+            - advice, percent
+            - league statistics, teams statistics
+        """
+        return self._make_request("predictions", {"fixture": fixture_id})
+    
+    # ========================================================================
+    # ODDS ENDPOINTS
+    # ========================================================================
+    
+    def get_odds(self, fixture_id: Optional[int] = None,
+                 league_id: Optional[int] = None,
+                 season: Optional[int] = None,
+                 date_str: Optional[str] = None,
+                 bookmaker_id: Optional[int] = None,
+                 bet_id: Optional[int] = None,
+                 page: Optional[int] = None) -> APIResponse:
+        """
+        Get betting odds
+        
+        Args:
+            fixture_id: Specific fixture ID
+            league_id: Filter by league
+            season: Filter by season  
+            date_str: Filter by date (YYYY-MM-DD)
+            bookmaker_id: Filter by bookmaker
+            bet_id: Filter by bet type
+            page: Pagination
+            
+        Returns:
+            APIResponse with odds data from various bookmakers
+        """
+        params = {}
+        if fixture_id:
+            params['fixture'] = fixture_id
+        if league_id:
+            params['league'] = league_id
+        if season:
+            params['season'] = season
+        if date_str:
+            params['date'] = date_str
+        if bookmaker_id:
+            params['bookmaker'] = bookmaker_id
+        if bet_id:
+            params['bet'] = bet_id
+        if page:
+            params['page'] = page
+            
+        return self._make_request("odds", params)
+    
+    def get_odds_bookmakers(self) -> APIResponse:
+        """Get all available bookmakers"""
+        return self._make_request("odds/bookmakers")
+    
+    def get_odds_bets(self) -> APIResponse:
+        """Get all available bet types"""
+        return self._make_request("odds/bets")
+    
+    # ========================================================================
+    # TROPHIES ENDPOINTS
+    # ========================================================================
+    
+    def get_trophies(self, player_id: Optional[int] = None, 
+                     coach_id: Optional[int] = None) -> APIResponse:
+        """
+        Get trophies won by player or coach
+        
+        Args:
+            player_id: Get trophies for specific player
+            coach_id: Get trophies for specific coach
+            
+        Returns:
+            APIResponse with trophies data including:
+            - league, country, season
+            - place (winner, runner-up, etc.)
+        """
+        params = {}
+        if player_id:
+            params['player'] = player_id
+        if coach_id:
+            params['coach'] = coach_id
+            
+        return self._make_request("trophies", params)
+    
+    # ========================================================================
+    # SIDELINED ENDPOINTS (Comprehensive Injuries)
+    # ========================================================================
+    
+    def get_sidelined(self, player_id: Optional[int] = None,
+                      coach_id: Optional[int] = None,
+                      team_id: Optional[int] = None) -> APIResponse:
+        """
+        Get comprehensive sidelined information (injuries, suspensions, etc.)
+        
+        Args:
+            player_id: Get sidelined info for specific player
+            coach_id: Get sidelined info for specific coach
+            team_id: Get all sidelined players/coaches for team
+            
+        Returns:
+            APIResponse with sidelined data including:
+            - type (injury, suspension, etc.)
+            - start, end dates
+            - reason, description
+        """
+        params = {}
+        if player_id:
+            params['player'] = player_id
+        if coach_id:
+            params['coach'] = coach_id
+        if team_id:
+            params['team'] = team_id
+            
+        return self._make_request("sidelined", params)
+    
+    # ========================================================================
+    # ADDITIONAL UTILITY METHODS
+    # ========================================================================
+    
     def get_current_season(self) -> int:
         """Get current season year"""
         return datetime.now().year if datetime.now().month >= 7 else datetime.now().year - 1

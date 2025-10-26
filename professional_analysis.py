@@ -560,6 +560,303 @@ class ProfessionalAnalysisEngine:
             else:
                 st.error(f"❌ {country_name} ligleri alınamadı")
 
+    def coaches_dashboard(self):
+        """Antrenör yönetimi dashboard'u"""
+        st.header("👨‍💼 Antrenör Yönetimi")
+        
+        # Arama seçenekleri
+        search_type = st.selectbox(
+            "Arama Türü",
+            ["Takım ID ile", "İsim ile Arama"],
+            key="coach_search_type"
+        )
+        
+        if search_type == "Takım ID ile":
+            team_id = st.number_input("Takım ID girin:", min_value=1, key="coach_team_id")
+            
+            if st.button("🔍 Antrenörü Bul", key="find_coach_by_team"):
+                with st.spinner("Antrenör aranıyor..."):
+                    result = self.api.get_coaches(team_id=team_id)
+                    
+                    if result.status == APIStatus.SUCCESS and result.data:
+                        for coach in result.data:
+                            coach_info = coach
+                            
+                            col1, col2, col3 = st.columns([1, 2, 1])
+                            
+                            with col1:
+                                photo_url = coach_info.get('photo')
+                                if photo_url:
+                                    st.image(photo_url, width=100)
+                            
+                            with col2:
+                                st.subheader(f"👨‍💼 {coach_info.get('name', 'Bilinmiyor')}")
+                                st.write(f"**📅 Yaş:** {coach_info.get('age', 'N/A')}")
+                                st.write(f"**🌍 Uyruk:** {coach_info.get('nationality', 'N/A')}")
+                                
+                                birth = coach_info.get('birth', {})
+                                if birth:
+                                    st.write(f"**🎂 Doğum:** {birth.get('date', 'N/A')}")
+                                    st.write(f"**📍 Doğum Yeri:** {birth.get('place', 'N/A')}, {birth.get('country', 'N/A')}")
+                            
+                            with col3:
+                                st.write(f"**📏 Boy:** {coach_info.get('height', 'N/A')}")
+                                st.write(f"**⚖️ Kilo:** {coach_info.get('weight', 'N/A')}")
+                    else:
+                        st.error("❌ Antrenör bulunamadı")
+        
+        else:  # İsim ile arama
+            coach_name = st.text_input("Antrenör adını girin:", key="coach_search_name")
+            
+            if st.button("🔍 Antrenör Ara", key="search_coach_by_name") and coach_name:
+                with st.spinner(f"{coach_name} aranıyor..."):
+                    result = self.api.get_coaches(search=coach_name)
+                    
+                    if result.status == APIStatus.SUCCESS and result.data:
+                        st.success(f"✅ {len(result.data)} antrenör bulundu")
+                        
+                        for idx, coach in enumerate(result.data, 1):
+                            with st.expander(f"👨‍💼 {coach.get('name', f'Antrenör {idx}')}", expanded=(idx==1)):
+                                col1, col2 = st.columns(2)
+                                
+                                with col1:
+                                    photo_url = coach.get('photo')
+                                    if photo_url:
+                                        st.image(photo_url, width=150)
+                                    
+                                    st.write(f"**📅 Yaş:** {coach.get('age', 'N/A')}")
+                                    st.write(f"**🌍 Uyruk:** {coach.get('nationality', 'N/A')}")
+                                
+                                with col2:
+                                    birth = coach.get('birth', {})
+                                    if birth:
+                                        st.write(f"**🎂 Doğum Tarihi:** {birth.get('date', 'N/A')}")
+                                        st.write(f"**📍 Doğum Yeri:** {birth.get('place', 'N/A')}")
+                                        st.write(f"**🏴 Ülke:** {birth.get('country', 'N/A')}")
+                                    
+                                    st.write(f"**📏 Boy:** {coach.get('height', 'N/A')}")
+                                    st.write(f"**⚖️ Kilo:** {coach.get('weight', 'N/A')}")
+                    else:
+                        st.error("❌ Antrenör bulunamadı")
+
+    def venues_dashboard(self):
+        """Stad yönetimi dashboard'u"""
+        st.header("🏟️ Stad Yönetimi")
+        
+        # Arama seçenekleri
+        search_type = st.selectbox(
+            "Arama Türü",
+            ["Stad ID ile", "İsim ile", "Şehir ile", "Ülke ile"],
+            key="venue_search_type"
+        )
+        
+        if search_type == "Stad ID ile":
+            venue_id = st.number_input("Stad ID girin:", min_value=1, key="venue_id_input")
+            
+            if st.button("🔍 Stadı Bul", key="find_venue_by_id"):
+                with st.spinner("Stad aranıyor..."):
+                    result = self.api.get_venues(venue_id=venue_id)
+                    self._display_venues(result)
+        
+        elif search_type == "İsim ile":
+            venue_name = st.text_input("Stad adını girin:", key="venue_name_input")
+            
+            if st.button("🔍 Stad Ara", key="search_venue_by_name") and venue_name:
+                with st.spinner(f"{venue_name} aranıyor..."):
+                    result = self.api.get_venues(name=venue_name)
+                    self._display_venues(result)
+        
+        elif search_type == "Şehir ile":
+            city_name = st.text_input("Şehir adını girin:", key="venue_city_input")
+            
+            if st.button("🏙️ Şehirdeki Stadları Bul", key="search_venue_by_city") and city_name:
+                with st.spinner(f"{city_name} stadları aranıyor..."):
+                    result = self.api.get_venues(city=city_name)
+                    self._display_venues(result)
+        
+        else:  # Ülke ile
+            country_name = st.text_input("Ülke adını girin:", key="venue_country_input")
+            
+            if st.button("🌍 Ülkedeki Stadları Bul", key="search_venue_by_country") and country_name:
+                with st.spinner(f"{country_name} stadları aranıyor..."):
+                    result = self.api.get_venues(country=country_name)
+                    self._display_venues(result)
+
+    def _display_venues(self, result: APIResponse):
+        """Stad sonuçlarını görüntüle"""
+        if result.status == APIStatus.SUCCESS and result.data:
+            st.success(f"✅ {len(result.data)} stad bulundu")
+            
+            for idx, venue in enumerate(result.data, 1):
+                with st.expander(f"🏟️ {venue.get('name', f'Stad {idx}')}", expanded=(idx==1)):
+                    col1, col2 = st.columns(2)
+                    
+                    with col1:
+                        venue_image = venue.get('image')
+                        if venue_image:
+                            st.image(venue_image, use_column_width=True)
+                        else:
+                            st.info("📷 Resim mevcut değil")
+                    
+                    with col2:
+                        st.write(f"**🆔 ID:** {venue.get('id', 'N/A')}")
+                        st.write(f"**📍 Adres:** {venue.get('address', 'N/A')}")
+                        st.write(f"**🏙️ Şehir:** {venue.get('city', 'N/A')}")
+                        st.write(f"**🌍 Ülke:** {venue.get('country', 'N/A')}")
+                        st.write(f"**👥 Kapasite:** {venue.get('capacity', 'N/A'):,}")
+                        st.write(f"**🌿 Zemin:** {venue.get('surface', 'N/A')}")
+        else:
+            st.error("❌ Stad bulunamadı")
+
+    def predictions_dashboard(self):
+        """Tahmin dashboard'u"""
+        st.header("🔮 Maç Tahminleri")
+        
+        fixture_id = st.number_input("Maç ID girin:", min_value=1, key="prediction_fixture_id")
+        
+        if st.button("🔮 Tahmin Al", key="get_prediction"):
+            with st.spinner("Tahmin alınıyor..."):
+                result = self.api.get_predictions(fixture_id)
+                
+                if result.status == APIStatus.SUCCESS and result.data:
+                    prediction_data = result.data[0] if result.data else None
+                    
+                    if prediction_data:
+                        # Genel tahmin bilgileri
+                        st.subheader("🎯 Genel Tahmin")
+                        
+                        predictions = prediction_data.get('predictions', {})
+                        
+                        # Kazanan tahmini
+                        winner = predictions.get('winner', {})
+                        if winner:
+                            st.success(f"🏆 **Kazanan Tahmini:** {winner.get('name', 'Bilinmiyor')}")
+                            st.info(f"💬 **Yorum:** {winner.get('comment', 'Yorum yok')}")
+                        
+                        # Yüzde tahminleri
+                        percent = predictions.get('percent', {})
+                        if percent:
+                            col1, col2, col3 = st.columns(3)
+                            
+                            with col1:
+                                st.metric("🏠 Ev Sahibi", f"{percent.get('home', 0)}%")
+                            with col2:
+                                st.metric("🤝 Beraberlik", f"{percent.get('draw', 0)}%")
+                            with col3:
+                                st.metric("✈️ Deplasman", f"{percent.get('away', 0)}%")
+                        
+                        # Gol tahminleri
+                        goals = predictions.get('goals', {})
+                        if goals:
+                            st.subheader("⚽ Gol Tahminleri")
+                            col1, col2 = st.columns(2)
+                            
+                            with col1:
+                                st.write(f"🏠 **Ev Sahibi Gol:** {goals.get('home', 'N/A')}")
+                            with col2:
+                                st.write(f"✈️ **Deplasman Gol:** {goals.get('away', 'N/A')}")
+                        
+                        # Öneriler
+                        advice = predictions.get('advice', 'Tavsiye mevcut değil')
+                        st.subheader("💡 Tavsiye")
+                        st.info(advice)
+                
+                else:
+                    st.error("❌ Tahmin alınamadı")
+
+    def odds_dashboard(self):
+        """Bahis oranları dashboard'u"""
+        st.header("💰 Bahis Oranları")
+        
+        # Arama türü seçimi
+        search_type = st.selectbox(
+            "Arama Türü",
+            ["Maç ID ile", "Lig ile", "Tarih ile"],
+            key="odds_search_type"
+        )
+        
+        if search_type == "Maç ID ile":
+            fixture_id = st.number_input("Maç ID girin:", min_value=1, key="odds_fixture_id")
+            
+            if st.button("💰 Oranları Al", key="get_odds_by_fixture"):
+                with st.spinner("Oranlar alınıyor..."):
+                    result = self.api.get_odds(fixture_id=fixture_id)
+                    self._display_odds(result)
+        
+        elif search_type == "Lig ile":
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                league_id = st.number_input("Lig ID girin:", min_value=1, key="odds_league_id")
+            with col2:
+                season = st.number_input("Sezon girin:", min_value=2000, max_value=2025, 
+                                       value=2024, key="odds_season")
+            
+            if st.button("💰 Lig Oranlarını Al", key="get_odds_by_league"):
+                with st.spinner("Lig oranları alınıyor..."):
+                    result = self.api.get_odds(league_id=league_id, season=season)
+                    self._display_odds(result)
+        
+        else:  # Tarih ile
+            date_input = st.date_input("Tarih seçin:", key="odds_date_input")
+            
+            if st.button("💰 Günün Oranlarını Al", key="get_odds_by_date"):
+                date_str = date_input.strftime("%Y-%m-%d")
+                with st.spinner(f"{date_str} oranları alınıyor..."):
+                    result = self.api.get_odds(date_str=date_str)
+                    self._display_odds(result)
+        
+        # Bookmaker ve bet türlerini göster
+        st.subheader("📊 Mevcut Bookmaker'lar ve Bahis Türleri")
+        
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            if st.button("📚 Bookmaker'ları Görüntüle", key="show_bookmakers"):
+                with st.spinner("Bookmaker'lar alınıyor..."):
+                    result = self.api.get_odds_bookmakers()
+                    if result.status == APIStatus.SUCCESS and result.data:
+                        st.subheader("📚 Bookmaker'lar")
+                        for bookmaker in result.data[:10]:  # İlk 10 tanesi
+                            st.write(f"- **{bookmaker.get('name', 'N/A')}** (ID: {bookmaker.get('id', 'N/A')})")
+        
+        with col2:
+            if st.button("🎲 Bahis Türlerini Görüntüle", key="show_bet_types"):
+                with st.spinner("Bahis türleri alınıyor..."):
+                    result = self.api.get_odds_bets()
+                    if result.status == APIStatus.SUCCESS and result.data:
+                        st.subheader("🎲 Bahis Türleri")
+                        for bet in result.data[:10]:  # İlk 10 tanesi
+                            st.write(f"- **{bet.get('name', 'N/A')}** (ID: {bet.get('id', 'N/A')})")
+
+    def _display_odds(self, result: APIResponse):
+        """Bahis oranlarını görüntüle"""
+        if result.status == APIStatus.SUCCESS and result.data:
+            st.success(f"✅ {len(result.data)} maç için oran bulundu")
+            
+            for idx, fixture_odds in enumerate(result.data[:5], 1):  # İlk 5 maç
+                fixture = fixture_odds.get('fixture', {})
+                bookmakers = fixture_odds.get('bookmakers', [])
+                
+                with st.expander(f"⚽ Maç {idx}: {fixture.get('id', 'N/A')}", expanded=(idx==1)):
+                    if bookmakers:
+                        for bookmaker in bookmakers[:3]:  # İlk 3 bookmaker
+                            st.write(f"**📚 {bookmaker.get('name', 'Bookmaker')}**")
+                            
+                            bets = bookmaker.get('bets', [])
+                            for bet in bets:
+                                bet_name = bet.get('name', 'Bahis')
+                                values = bet.get('values', [])
+                                
+                                if values:
+                                    st.write(f"🎲 **{bet_name}:**")
+                                    for value in values[:3]:  # İlk 3 değer
+                                        st.write(f"  - {value.get('value', 'N/A')}: {value.get('odd', 'N/A')}")
+                    else:
+                        st.warning("Bu maç için oran bulunmuyor")
+        else:
+            st.error("❌ Oran bulunamadı")
+
 # Global analysis engine instance
 analysis_engine: Optional[ProfessionalAnalysisEngine] = None
 

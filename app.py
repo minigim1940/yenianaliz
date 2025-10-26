@@ -2020,6 +2020,78 @@ def display_timezone_management():
             except Exception as e:
                 st.error(f"Saat dilimi bilgisi alınamadı: {e}")
 
+def display_coaches_management():
+    """Antrenör yönetimi sayfası"""
+    try:
+        from professional_analysis import ProfessionalAnalysisEngine
+        from football_api_v3 import APIFootballV3
+        
+        # API instance'ı oluştur
+        api_instance = APIFootballV3(API_KEY)
+        engine = ProfessionalAnalysisEngine(api_instance)
+        
+        # Dashboard'u göster
+        engine.coaches_dashboard()
+        
+    except Exception as e:
+        st.error(f"❌ Antrenör yönetimi yüklenirken hata oluştu: {str(e)}")
+        import traceback
+        st.code(traceback.format_exc())
+
+def display_venues_management():
+    """Stad yönetimi sayfası"""
+    try:
+        from professional_analysis import ProfessionalAnalysisEngine
+        from football_api_v3 import APIFootballV3
+        
+        # API instance'ı oluştur
+        api_instance = APIFootballV3(API_KEY)
+        engine = ProfessionalAnalysisEngine(api_instance)
+        
+        # Dashboard'u göster
+        engine.venues_dashboard()
+        
+    except Exception as e:
+        st.error(f"❌ Stad yönetimi yüklenirken hata oluştu: {str(e)}")
+        import traceback
+        st.code(traceback.format_exc())
+
+def display_predictions_management():
+    """Tahmin yönetimi sayfası"""
+    try:
+        from professional_analysis import ProfessionalAnalysisEngine
+        from football_api_v3 import APIFootballV3
+        
+        # API instance'ı oluştur
+        api_instance = APIFootballV3(API_KEY)
+        engine = ProfessionalAnalysisEngine(api_instance)
+        
+        # Dashboard'u göster
+        engine.predictions_dashboard()
+        
+    except Exception as e:
+        st.error(f"❌ Tahmin yönetimi yüklenirken hata oluştu: {str(e)}")
+        import traceback
+        st.code(traceback.format_exc())
+
+def display_odds_management():
+    """Bahis oranları yönetimi sayfası"""
+    try:
+        from professional_analysis import ProfessionalAnalysisEngine
+        from football_api_v3 import APIFootballV3
+        
+        # API instance'ı oluştur
+        api_instance = APIFootballV3(API_KEY)
+        engine = ProfessionalAnalysisEngine(api_instance)
+        
+        # Dashboard'u göster
+        engine.odds_dashboard()
+        
+    except Exception as e:
+        st.error(f"❌ Bahis oranları yönetimi yüklenirken hata oluştu: {str(e)}")
+        import traceback
+        st.code(traceback.format_exc())
+
 def main():
     # KALICI OTURUM - LocalStorage ile yönetim
     # JavaScript ile localStorage'dan kullanıcı bilgisini oku
@@ -2286,8 +2358,8 @@ def main():
             # URL'den view parametresini al, yoksa 'home' yap
             query_params = st.query_params
             view_param = query_params.get('view', 'home')
-            # Geçerli view'lar: home, dashboard, manual, codes, enhanced, timezone
-            valid_views = ['home', 'dashboard', 'manual', 'codes', 'enhanced', 'timezone']
+            # Geçerli view'lar: home, dashboard, manual, codes, enhanced, timezone, coaches, venues, predictions, odds
+            valid_views = ['home', 'dashboard', 'manual', 'codes', 'enhanced', 'timezone', 'coaches', 'venues', 'predictions', 'odds']
             st.session_state.view = view_param if view_param in valid_views else 'home'
         
         # Favori ligleri config'den yükle (ilk giriş)
@@ -2350,6 +2422,21 @@ def main():
         with nav_col5:
             if st.button("🌍", use_container_width=True, key="nav_timezone", help="Saat Dilimi"):
                 update_url_and_rerun('timezone')
+        with nav_col6:
+            if st.button("👨‍💼", use_container_width=True, key="nav_coaches", help="Antrenörler"):
+                update_url_and_rerun('coaches')
+        with nav_col7:
+            if st.button("🏟️", use_container_width=True, key="nav_venues", help="Stadlar"):
+                update_url_and_rerun('venues')
+        with nav_col8:
+            if st.button("🔮", use_container_width=True, key="nav_predictions", help="Tahminler"):
+                update_url_and_rerun('predictions')
+        
+        # Üçüncü sıra navigasyon butonları
+        nav_col9, nav_col10, nav_col11, nav_col12 = st.sidebar.columns(4)
+        with nav_col9:
+            if st.button("💰", use_container_width=True, key="nav_odds", help="Bahis Oranları"):
+                update_url_and_rerun('odds')
         
         st.sidebar.markdown("---")
         
@@ -3086,6 +3173,14 @@ def main():
             display_enhanced_match_analysis(API_KEY, BASE_URL)
         elif st.session_state.view == 'timezone':
             display_timezone_management()
+        elif st.session_state.view == 'coaches':
+            display_coaches_management()
+        elif st.session_state.view == 'venues':
+            display_venues_management()
+        elif st.session_state.view == 'predictions':
+            display_predictions_management()
+        elif st.session_state.view == 'odds':
+            display_odds_management()
         elif st.session_state.view == 'codes':
             build_codes_view()
 
