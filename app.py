@@ -1974,13 +1974,7 @@ def main():
     
     # İlk kontrol: Session state'de authentication var mı?
     if 'authentication_status' not in st.session_state:
-        # Query params'dan oku
-        if 'auth_user' in query_params:
-            saved_username = query_params.get('auth_user', '')
-            if saved_username and saved_username in config['credentials']['usernames']:
-                st.session_state['authentication_status'] = True
-                st.session_state['username'] = saved_username
-                st.session_state['name'] = config['credentials']['usernames'][saved_username].get('name', saved_username)
+        st.session_state['authentication_status'] = None
     
     # Giriş yapılmışsa login formu gösterme
     if st.session_state.get('authentication_status') is True:
@@ -2019,7 +2013,7 @@ def main():
             if 'authentication_status' not in st.session_state:
                 st.session_state['authentication_status'] = None
 
-    if st.session_state.get('authentication_status') is not True and not st.session_state.get('bypass_login'):
+    if st.session_state.get('authentication_status') is not True:
         
         # LOGO EN ÜSTTE - Daha büyük ve etkileyici
         col1, col2, col3 = st.columns([1, 2, 1])
