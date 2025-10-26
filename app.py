@@ -429,6 +429,19 @@ def display_team_with_logo(team_name: str, logo_url: str = None, size: int = 30)
         return f'<img src="{logo_url}" width="{size}" style="vertical-align: middle; margin-right: 8px;"/>{team_name}'
     return team_name
 
+def get_reliability_indicators(confidence_score: float) -> tuple:
+    """Güvenilirlik skoruna göre simge, metin ve renk döndürür"""
+    if confidence_score >= 85:
+        return "🔒", "Çok Güvenilir", "#00C851"  # Yeşil
+    elif confidence_score >= 70:
+        return "🛡️", "Güvenilir", "#007E33"      # Koyu yeşil
+    elif confidence_score >= 55:
+        return "⚠️", "Orta Güvenilir", "#FF8800"  # Turuncu
+    elif confidence_score >= 40:
+        return "❗", "Düşük Güvenilir", "#FF4444" # Kırmızı
+    else:
+        return "⚡", "Çok Riskli", "#AA0000"      # Koyu kırmızı
+
 def display_best_bet_card(title: str, match_data: pd.Series, prediction_label: str, prediction_value: str, metric_label: str, metric_value: str):
     with st.container(border=True):
         st.markdown(f"<h5 style='text-align: center;'>{title}</h5>", unsafe_allow_html=True)
@@ -437,7 +450,23 @@ def display_best_bet_card(title: str, match_data: pd.Series, prediction_label: s
         away_logo = match_data.get('away_logo', '')
         home_with_logo = display_team_with_logo(match_data['Ev Sahibi'], home_logo, size=25)
         away_with_logo = display_team_with_logo(match_data['Deplasman'], away_logo, size=25)
-        st.markdown(f"<div style='text-align: center; margin: 10px 0;'>{home_with_logo} vs {away_with_logo}</div>", unsafe_allow_html=True)
+        
+        # Güvenilirlik göstergesi hesapla
+        confidence_score = match_data.get('AI Güven Puanı', 0)
+        reliability_icon, reliability_text, reliability_color = get_reliability_indicators(confidence_score)
+        
+        # Maç ve güvenilirlik bilgisi
+        st.markdown(f"""
+        <div style='text-align: center; margin: 10px 0;'>
+            {home_with_logo} vs {away_with_logo}
+        </div>
+        <div style='text-align: center; margin: 5px 0;'>
+            <span style='color: {reliability_color}; font-weight: bold;'>
+                {reliability_icon} {reliability_text}
+            </span>
+        </div>
+        """, unsafe_allow_html=True)
+        
         st.metric(prediction_label, prediction_value)
         st.metric(metric_label, metric_value)
 
@@ -935,8 +964,10 @@ def display_betting_categories_turkish(bookmakers_data, reliable_odds, team_name
     
     # 1X2 Bahisleri
     if 'Match Winner' in reliable_odds:
-        st.markdown("#### ⚽ Maç Kazananı (1X2)")
         match_winner = reliable_odds['Match Winner']
+        reliability_icon, reliability_text, reliability_color = get_reliability_indicators(match_winner['reliability_score'])
+        
+        st.markdown(f"""#### ⚽ Maç Kazananı (1X2) <span style='color: {reliability_color}; margin-left: 10px;'>{reliability_icon} {reliability_text}</span>""", unsafe_allow_html=True)
         
         col1, col2, col3, col4 = st.columns(4)
         
@@ -996,9 +1027,10 @@ def display_betting_categories_turkish(bookmakers_data, reliable_odds, team_name
     # Alt/Üst Bahisleri
     if 'Over/Under' in reliable_odds:
         st.markdown("---")
-        st.markdown("#### 📊 Toplam Gol (Alt/Üst)")
-        
         over_under = reliable_odds['Over/Under']
+        reliability_icon, reliability_text, reliability_color = get_reliability_indicators(over_under['reliability_score'])
+        
+        st.markdown(f"""#### 📊 Toplam Gol (Alt/Üst) <span style='color: {reliability_color}; margin-left: 10px;'>{reliability_icon} {reliability_text}</span>""", unsafe_allow_html=True)
         
         col1, col2 = st.columns(2)
         
@@ -1043,9 +1075,10 @@ def display_betting_categories_turkish(bookmakers_data, reliable_odds, team_name
     # Karşılıklı Gol
     if 'Both Teams Score' in reliable_odds:
         st.markdown("---")
-        st.markdown("#### ⚽ Karşılıklı Gol")
-        
         btts = reliable_odds['Both Teams Score']
+        reliability_icon, reliability_text, reliability_color = get_reliability_indicators(btts['reliability_score'])
+        
+        st.markdown(f"""#### ⚽ Karşılıklı Gol <span style='color: {reliability_color}; margin-left: 10px;'>{reliability_icon} {reliability_text}</span>""", unsafe_allow_html=True)
         
         col1, col2, col3, col4 = st.columns(4)
         
@@ -2809,8 +2842,9 @@ def build_home_view(model_params):
                     # Mevcut sezonu kullan
                     current_season = 2024
                     team_data = api_utils.get_team_id(API_KEY, BASE_URL, team_query, season=current_season)
-                    if team_data:
-                        st.success(f"✅ Takım bulundu: **{team_data['name']}**")
+                    
+                if team_data:
+                    st.success(f"✅ Takım bulundu: **{team_data['name']}**")
                     
                     if search_type == "Hızlı Arama (1 maç)":
                         # Eski sistem - tek maç
