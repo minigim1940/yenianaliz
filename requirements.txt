@@ -63,4 +63,5 @@ black>=23.0.0
 flake8>=6.0.0
 isort>=5.12.0
 
-# Note: Streamlit removed - FastAPI only project
+# Streamlit Web Framework
+streamlit>=1.28.0
