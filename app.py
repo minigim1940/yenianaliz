@@ -4280,6 +4280,24 @@ def display_odds_management():
         st.code(traceback.format_exc())
 
 def main():
+    # DEVELOPMENT MODE CHECK - Localhost için bypass
+    import socket
+    hostname = socket.gethostname()
+    local_ip = socket.gethostbyname(hostname)
+    is_localhost = local_ip.startswith('127.') or local_ip.startswith('192.168.') or hostname in ['localhost', 'DESKTOP-']
+    
+    # Development bypass için query parameter kontrolü
+    query_params = st.query_params
+    dev_bypass = query_params.get('dev') == 'true' and is_localhost
+    
+    if dev_bypass:
+        st.warning("⚠️ Development Mode: Authentication bypass aktif")
+        # Development için direkt auth bypass
+        st.session_state['authentication_status'] = True
+        st.session_state['username'] = 'dev_user'
+        st.session_state['name'] = 'Developer'
+        st.session_state['admin_users'] = ['dev_user']
+    
     # KALICI OTURUM - LocalStorage ile yönetim
     # JavaScript ile localStorage'dan kullanıcı bilgisini oku
     auth_script = """
@@ -4329,8 +4347,8 @@ def main():
         st.session_state['authentication_status'] = None
     
     # Giriş yapılmışsa login formu gösterme
-    if st.session_state.get('authentication_status') is True:
-        # Zaten giriş yapılmış, direkt ana sayfaya git
+    if st.session_state.get('authentication_status') is True or dev_bypass:
+        # Zaten giriş yapılmış veya dev mode, direkt ana sayfaya git
         pass
     else:
         # Giriş yapılmamış, login formunu göster
@@ -5428,6 +5446,26 @@ def main():
                             safe_rerun()
                     else:
                         st.error('Kullanıcı eklenemedi.')
+        
+        # DEVELOPMENT MODE BYPASS (Sadece localhost için)
+        if is_localhost:
+            st.markdown("---")
+            with st.expander("🛠️ Development Mode (Localhost)"):
+                st.warning("⚠️ Bu bölüm sadece localhost'ta görünür.")
+                col1, col2 = st.columns(2)
+                
+                with col1:
+                    if st.button("🚀 Dev Mode Giriş", use_container_width=True):
+                        st.session_state['authentication_status'] = True
+                        st.session_state['username'] = 'dev_user'
+                        st.session_state['name'] = 'Developer'
+                        st.session_state['admin_users'] = ['dev_user']
+                        st.query_params['dev'] = 'true'
+                        st.success("Development mode aktif!")
+                        st.rerun()
+                
+                with col2:
+                    st.info("Development bypass:\n- Admin yetkileri\n- IP kısıtı yok\n- Sınırsız API")
 
 def display_professional_analysis():
     """Profesyonel analiz sayfası - Gelişmiş API-Football v3 özellikleri"""
