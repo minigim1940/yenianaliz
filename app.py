@@ -632,22 +632,138 @@ def display_stats_tab(stats: Dict, team_names: Dict, team_ids: Dict, params: Opt
 
 def display_injuries_tab(fixture_id: int, team_names: Dict, team_ids: Dict, league_info: Dict):
     st.subheader("❗ Maç Öncesi Önemli Eksikler")
-    injuries, error = api_utils.get_fixture_injuries(API_KEY, BASE_URL, fixture_id)
-    if error: 
-        st.warning(f"Sakatlık verisi çekilemedi: {error}")
-    elif not injuries: 
-        st.success("✅ Takımlarda önemli bir eksik bildirilmedi.")
-    else:
-        team_a_inj = [p for p in injuries if p['team']['id'] == team_ids['a']]
-        team_b_inj = [p for p in injuries if p['team']['id'] == team_ids['b']]
-        season = league_info['season']
+    
+    try:
+        # API v3 kullanarak sakatlık verilerini al
+        from football_api_v3 import APIFootballV3
+        api = APIFootballV3(API_KEY)
+        
+        with st.spinner("Sakatlık verileri alınıyor..."):
+            # Her iki takım için ayrı ayrı sakatlık verisi al
+            team_a_injuries = api.get_sidelined(team_id=team_ids['a'])
+            team_b_injuries = api.get_sidelined(team_id=team_ids['b'])
+        
+        # Kolonlar oluştur
         c1, c2 = st.columns(2)
+        
         with c1:
-            st.markdown(f"**{team_names['a']}**")
-            if team_a_inj: 
-                for p in team_a_inj:
-                    player_id = p['player']['id']
-                    player_stats_data, _ = api_utils.get_player_stats(API_KEY, BASE_URL, player_id, season)
+            st.markdown(f"**🏠 {team_names['a']} - Eksik Oyuncular**")
+            
+            if team_a_injuries.status.value == "success" and team_a_injuries.data:
+                injuries_data = team_a_injuries.data
+                
+                # Aktif sakatlıkları filtrele
+                active_injuries = []
+                for injury in injuries_data:
+                    if injury.get('type', '').lower() in ['injury', 'sakatlik', 'missing']:
+                        active_injuries.append(injury)
+                
+                if active_injuries:
+                    for injury in active_injuries[:10]:  # İlk 10 sakatlığı göster
+                        player_name = injury.get('player', {}).get('name', 'Bilinmiyor')
+                        injury_type = injury.get('type', 'Bilinmiyor')
+                        reason = injury.get('reason', 'Sebep belirtilmemiş')
+                        start_date = injury.get('start', 'Tarih bilinmiyor')
+                        end_date = injury.get('end', 'Dönüş tarihi belirsiz')
+                        
+                        # Sakatlık türü ikonları
+                        injury_icons = {
+                            'injury': '🤕',
+                            'suspension': '🟥',
+                            'missing': '❓'
+                        }
+                        icon = injury_icons.get(injury_type.lower(), '⚠️')
+                        
+                        with st.expander(f"{icon} {player_name}"):
+                            st.write(f"**Durum:** {reason}")
+                            st.write(f"**Başlangıç:** {start_date}")
+                            st.write(f"**Tahmini Dönüş:** {end_date}")
+                else:
+                    st.success("✅ Aktif sakatlık bulunmuyor")
+            else:
+                st.info("🔍 Bu takım için sakatlık verisi bulunamadı")
+        
+        with c2:
+            st.markdown(f"**✈️ {team_names['b']} - Eksik Oyuncular**")
+            
+            if team_b_injuries.status.value == "success" and team_b_injuries.data:
+                injuries_data = team_b_injuries.data
+                
+                # Aktif sakatlıkları filtrele
+                active_injuries = []
+                for injury in injuries_data:
+                    if injury.get('type', '').lower() in ['injury', 'sakatlik', 'missing']:
+                        active_injuries.append(injury)
+                
+                if active_injuries:
+                    for injury in active_injuries[:10]:  # İlk 10 sakatlığı göster
+                        player_name = injury.get('player', {}).get('name', 'Bilinmiyor')
+                        injury_type = injury.get('type', 'Bilinmiyor')
+                        reason = injury.get('reason', 'Sebep belirtilmemiş')
+                        start_date = injury.get('start', 'Tarih bilinmiyor')
+                        end_date = injury.get('end', 'Dönüş tarihi belirsiz')
+                        
+                        # Sakatlık türü ikonları
+                        injury_icons = {
+                            'injury': '🤕',
+                            'suspension': '🟥',
+                            'missing': '❓'
+                        }
+                        icon = injury_icons.get(injury_type.lower(), '⚠️')
+                        
+                        with st.expander(f"{icon} {player_name}"):
+                            st.write(f"**Durum:** {reason}")
+                            st.write(f"**Başlangıç:** {start_date}")
+                            st.write(f"**Tahmini Dönüş:** {end_date}")
+                else:
+                    st.success("✅ Aktif sakatlık bulunmuyor")
+            else:
+                st.info("🔍 Bu takım için sakatlık verisi bulunamadı")
+        
+        # Genel sakatlık analizi
+        st.markdown("---")
+        st.markdown("### 📋 Sakatlık Analizi Özeti")
+        
+        total_a = len(team_a_injuries.data) if team_a_injuries.status.value == "success" and team_a_injuries.data else 0
+        total_b = len(team_b_injuries.data) if team_b_injuries.status.value == "success" and team_b_injuries.data else 0
+        
+        col1, col2, col3 = st.columns(3)
+        
+        with col1:
+            st.metric(f"🏠 {team_names['a']}", f"{total_a} eksik")
+        
+        with col2:
+            st.metric(f"✈️ {team_names['b']}", f"{total_b} eksik")
+        
+        with col3:
+            advantage = "Dengeli"
+            if total_a > total_b:
+                advantage = f"{team_names['b']} avantajlı"
+            elif total_b > total_a:
+                advantage = f"{team_names['a']} avantajlı"
+            
+            st.metric("🎯 Durum", advantage)
+    
+    except Exception as e:
+        st.error(f"❌ Sakatlık verileri alınırken hata oluştu: {str(e)}")
+        
+        # Fallback - eski sistem
+        injuries, error = api_utils.get_fixture_injuries(API_KEY, BASE_URL, fixture_id)
+        if error: 
+            st.warning(f"Sakatlık verisi çekilemedi: {error}")
+        elif not injuries: 
+            st.success("✅ Takımlarda önemli bir eksik bildirilmedi.")
+        else:
+            team_a_inj = [p for p in injuries if p['team']['id'] == team_ids['a']]
+            team_b_inj = [p for p in injuries if p['team']['id'] == team_ids['b']]
+            season = league_info['season']
+            c1, c2 = st.columns(2)
+            with c1:
+                st.markdown(f"**{team_names['a']}**")
+                if team_a_inj: 
+                    for p in team_a_inj:
+                        player_id = p['player']['id']
+                        player_stats_data, _ = api_utils.get_player_stats(API_KEY, BASE_URL, player_id, season)
                     stats_str = analysis_logic.process_player_stats(player_stats_data) or ""
                     st.warning(f"**{p['player']['name']}** - {p['player']['reason']}{stats_str}")
             else: 
@@ -692,28 +808,286 @@ def display_referee_tab(referee_stats: Optional[Dict]):
         st.warning("Bu maç için hakem bilgisi atanmamış veya bulunamadı.")
 
 def display_detailed_betting_tab(analysis: Dict, team_names: Dict, fixture_id: int, model_params: Dict):
-    """🎲 Detaylı İddaa Tahminleri - Model vs Piyasa Karşılaştırması"""
-    st.subheader("🎲 Detaylı İddaa Tahminleri ve Piyasa Karşılaştırması")
+    """🎲 Detaylı Bahis Analizi - Gerçek API Verileri ile Karşılaştırma"""
+    st.subheader("🎲 Detaylı Bahis Analizi ve Güvenilirlik Değerlendirmesi")
     
-    # Piyasa oranlarını çek
-    with st.spinner("Piyasa oranları alınıyor..."):
-        detailed_odds, error = api_utils.get_fixture_detailed_odds(API_KEY, BASE_URL, fixture_id)
+    # API v3 ile gerçek bahis oranlarını çek
+    try:
+        from football_api_v3 import APIFootballV3
+        api_instance = APIFootballV3(API_KEY)
+        
+        with st.spinner("Gerçek bahis oranları alınıyor..."):
+            odds_result = api_instance.get_odds(fixture_id=fixture_id)
+        
+        if odds_result.status.value == "success" and odds_result.data:
+            # Gerçek API verilerini işle
+            fixture_odds = odds_result.data[0] if odds_result.data else None
+            bookmakers_data = fixture_odds.get('bookmakers', []) if fixture_odds else []
+            
+            if bookmakers_data:
+                st.success(f"✅ {len(bookmakers_data)} bookmaker'dan oran bulundu!")
+                
+                # Türkçe bahis kategorileri
+                turkish_bet_names = {
+                    'Match Winner': 'Maç Kazananı (1X2)',
+                    'Over/Under': 'Toplam Gol (Alt/Üst)',
+                    'Both Teams Score': 'Karşılıklı Gol',
+                    'Asian Handicap': 'Asya Handikap',
+                    'Double Chance': 'Çifte Şans',
+                    'First Half Winner': 'İlk Yarı Kazananı',
+                    'Correct Score': 'Doğru Skor',
+                    'Total Cards': 'Toplam Kart',
+                    'Total Corners': 'Toplam Korner'
+                }
+                
+                # En güvenilir oranları hesapla
+                reliable_odds = calculate_most_reliable_odds(bookmakers_data, analysis)
+                
+                # Bahis kategorilerini göster
+                display_betting_categories_turkish(bookmakers_data, reliable_odds, team_names, analysis)
+                
+            else:
+                st.warning("❌ Bu maç için bahis oranları bulunamadı")
+                display_model_predictions_only(analysis, team_names)
+        else:
+            st.warning("❌ Bahis oranları API'sinden veri alınamadı")
+            display_model_predictions_only(analysis, team_names)
+            
+    except Exception as e:
+        st.error(f"❌ Bahis analizi sırasında hata oluştu: {str(e)}")
+        display_model_predictions_only(analysis, team_names)
+
+def calculate_most_reliable_odds(bookmakers_data, analysis):
+    """En güvenilir oranları hesapla"""
+    reliable_odds = {}
     
-    if error:
-        st.warning(f"⚠️ Detaylı piyasa oranları alınamadı: {error}")
-        st.info("💡 Model tahminlerini göstermeye devam ediyoruz, ancak piyasa karşılaştırması yapılamayacak.")
-        detailed_odds = None
-    elif not detailed_odds:
-        st.warning("⚠️ Bu maç için detaylı bahis oranları bulunamadı.")
-        st.info("💡 Muhtemelen yaklaşan bir maç veya bahis şirketleri henüz oran açmamış.")
-        detailed_odds = None
+    # Model tahminleri
+    probs = analysis.get('probs', {})
     
-    # Debug: Hangi kategorilerde oran var göster
-    if detailed_odds:
-        available_categories = []
-        for category, data in detailed_odds.items():
-            if data:
-                available_categories.append(category)
+    for bookmaker in bookmakers_data:
+        bookmaker_name = bookmaker.get('name', 'Bilinmiyor')
+        bets = bookmaker.get('bets', [])
+        
+        for bet in bets:
+            bet_name = bet.get('name', '')
+            values = bet.get('values', [])
+            
+            # Bahis türü güvenilirlik skorunu hesapla
+            if bet_name not in reliable_odds:
+                reliable_odds[bet_name] = {
+                    'best_odds': {},
+                    'reliability_score': 0,
+                    'bookmaker_count': 0,
+                    'average_odds': {}
+                }
+            
+            reliable_odds[bet_name]['bookmaker_count'] += 1
+            
+            for value in values:
+                outcome = value.get('value', '')
+                odd = value.get('odd', 0)
+                
+                try:
+                    odd_float = float(odd)
+                    
+                    if outcome not in reliable_odds[bet_name]['best_odds']:
+                        reliable_odds[bet_name]['best_odds'][outcome] = {
+                            'odd': odd_float,
+                            'bookmaker': bookmaker_name,
+                            'implied_prob': round(100 / odd_float, 1) if odd_float > 0 else 0
+                        }
+                    elif odd_float > reliable_odds[bet_name]['best_odds'][outcome]['odd']:
+                        reliable_odds[bet_name]['best_odds'][outcome] = {
+                            'odd': odd_float,
+                            'bookmaker': bookmaker_name,
+                            'implied_prob': round(100 / odd_float, 1) if odd_float > 0 else 0
+                        }
+                except (ValueError, TypeError, ZeroDivisionError):
+                    continue
+    
+    # Güvenilirlik skorunu hesapla
+    for bet_name in reliable_odds:
+        bookmaker_count = reliable_odds[bet_name]['bookmaker_count']
+        if bookmaker_count >= 3:
+            reliable_odds[bet_name]['reliability_score'] = min(95, 60 + (bookmaker_count * 5))
+        elif bookmaker_count == 2:
+            reliable_odds[bet_name]['reliability_score'] = 75
+        else:
+            reliable_odds[bet_name]['reliability_score'] = 50
+    
+    return reliable_odds
+
+def display_betting_categories_turkish(bookmakers_data, reliable_odds, team_names, analysis):
+    """Türkçe bahis kategorilerini göster"""
+    st.markdown("### 🎯 Bahis Kategorileri ve Güvenilirlik Analizi")
+    
+    # Model tahminleri
+    probs = analysis.get('probs', {})
+    
+    # 1X2 Bahisleri
+    if 'Match Winner' in reliable_odds:
+        st.markdown("#### ⚽ Maç Kazananı (1X2)")
+        match_winner = reliable_odds['Match Winner']
+        
+        col1, col2, col3, col4 = st.columns(4)
+        
+        with col1:
+            st.metric("Güvenilirlik", f"{match_winner['reliability_score']}%")
+        with col2:
+            st.metric("Bookmaker Sayısı", match_winner['bookmaker_count'])
+        with col3:
+            home_data = match_winner['best_odds'].get('Home', {})
+            if home_data:
+                model_prob = probs.get('win_a', 0) * 100
+                market_prob = home_data['implied_prob']
+                value_diff = model_prob - market_prob
+                
+                st.metric(
+                    f"🏠 {team_names['a']}",
+                    f"{home_data['odd']} ({market_prob}%)",
+                    delta=f"Model: {model_prob:.1f}% ({value_diff:+.1f}%)"
+                )
+        with col4:
+            away_data = match_winner['best_odds'].get('Away', {})
+            if away_data:
+                model_prob = probs.get('win_b', 0) * 100
+                market_prob = away_data['implied_prob']
+                value_diff = model_prob - market_prob
+                
+                st.metric(
+                    f"✈️ {team_names['b']}",
+                    f"{away_data['odd']} ({market_prob}%)",
+                    delta=f"Model: {model_prob:.1f}% ({value_diff:+.1f}%)"
+                )
+        
+        # En değerli bahisi belirle
+        best_value_bet = None
+        best_value_diff = 0
+        
+        for outcome, data in match_winner['best_odds'].items():
+            if outcome == 'Home':
+                model_prob = probs.get('win_a', 0) * 100
+            elif outcome == 'Away':
+                model_prob = probs.get('win_b', 0) * 100
+            elif outcome == 'Draw':
+                model_prob = probs.get('draw', 0) * 100
+            else:
+                continue
+            
+            value_diff = model_prob - data['implied_prob']
+            if value_diff > best_value_diff:
+                best_value_diff = value_diff
+                best_value_bet = (outcome, data, model_prob)
+        
+        if best_value_bet and best_value_diff > 5:
+            outcome, data, model_prob = best_value_bet
+            outcome_tr = {'Home': f'🏠 {team_names["a"]}', 'Away': f'✈️ {team_names["b"]}', 'Draw': '🤝 Beraberlik'}
+            st.success(f"💎 **En Değerli Bahis:** {outcome_tr.get(outcome, outcome)} - Oran: {data['odd']} (Model: {model_prob:.1f}% vs Piyasa: {data['implied_prob']}%) | **Değer: +{best_value_diff:.1f}%**")
+    
+    # Alt/Üst Bahisleri
+    if 'Over/Under' in reliable_odds:
+        st.markdown("---")
+        st.markdown("#### 📊 Toplam Gol (Alt/Üst)")
+        
+        over_under = reliable_odds['Over/Under']
+        
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            st.metric("Güvenilirlik", f"{over_under['reliability_score']}%")
+        
+        with col2:
+            st.metric("Bookmaker Sayısı", over_under['bookmaker_count'])
+        
+        # En yaygın alt/üst değerlerini göster
+        common_totals = ['2.5', '1.5', '3.5']
+        
+        for total in common_totals:
+            over_key = f'Over {total}'
+            under_key = f'Under {total}'
+            
+            if over_key in over_under['best_odds'] and under_key in over_under['best_odds']:
+                col1, col2 = st.columns(2)
+                
+                with col1:
+                    over_data = over_under['best_odds'][over_key]
+                    model_over = probs.get('ust_2.5', 0) * 100 if total == '2.5' else 50  # Basitleştirilmiş
+                    value_diff = model_over - over_data['implied_prob']
+                    
+                    st.metric(
+                        f"🔺 {total} Üst",
+                        f"{over_data['odd']} ({over_data['implied_prob']}%)",
+                        delta=f"Model: {model_over:.1f}% ({value_diff:+.1f}%)"
+                    )
+                
+                with col2:
+                    under_data = over_under['best_odds'][under_key]
+                    model_under = (100 - model_over)
+                    value_diff = model_under - under_data['implied_prob']
+                    
+                    st.metric(
+                        f"🔻 {total} Alt",
+                        f"{under_data['odd']} ({under_data['implied_prob']}%)",
+                        delta=f"Model: {model_under:.1f}% ({value_diff:+.1f}%)"
+                    )
+    
+    # Karşılıklı Gol
+    if 'Both Teams Score' in reliable_odds:
+        st.markdown("---")
+        st.markdown("#### ⚽⚽ Karşılıklı Gol")
+        
+        btts = reliable_odds['Both Teams Score']
+        
+        col1, col2, col3, col4 = st.columns(4)
+        
+        with col1:
+            st.metric("Güvenilirlik", f"{btts['reliability_score']}%")
+        
+        with col2:
+            st.metric("Bookmaker Sayısı", btts['bookmaker_count'])
+        
+        with col3:
+            yes_data = btts['best_odds'].get('Yes', {})
+            if yes_data:
+                model_prob = probs.get('kg_var', 0) * 100
+                value_diff = model_prob - yes_data['implied_prob']
+                
+                st.metric(
+                    "✅ Evet",
+                    f"{yes_data['odd']} ({yes_data['implied_prob']}%)",
+                    delta=f"Model: {model_prob:.1f}% ({value_diff:+.1f}%)"
+                )
+        
+        with col4:
+            no_data = btts['best_odds'].get('No', {})
+            if no_data:
+                model_prob = (100 - probs.get('kg_var', 0) * 100)
+                value_diff = model_prob - no_data['implied_prob']
+                
+                st.metric(
+                    "❌ Hayır",
+                    f"{no_data['odd']} ({no_data['implied_prob']}%)",
+                    delta=f"Model: {model_prob:.1f}% ({value_diff:+.1f}%)"
+                )
+
+def display_model_predictions_only(analysis, team_names):
+    """Sadece model tahminlerini göster"""
+    st.warning("⚠️ Piyasa oranları bulunamadı, sadece model tahminleri gösteriliyor")
+    
+    probs = analysis.get('probs', {})
+    
+    st.markdown("### 🤖 Model Tahminleri")
+    
+    col1, col2, col3 = st.columns(3)
+    
+    with col1:
+        st.metric(f"🏠 {team_names['a']} Kazanır", f"{probs.get('win_a', 0) * 100:.1f}%")
+    
+    with col2:
+        st.metric("🤝 Beraberlik", f"{probs.get('draw', 0) * 100:.1f}%")
+    
+    with col3:
+        st.metric(f"✈️ {team_names['b']} Kazanır", f"{probs.get('win_b', 0) * 100:.1f}%")
         if available_categories:
             st.success(f"✅ Bulunan oran kategorileri: {', '.join(available_categories)}")
         else:
@@ -965,26 +1339,236 @@ def display_detailed_betting_tab(analysis: Dict, team_names: Dict, fixture_id: i
     st.markdown("---")
     st.caption("💡 **Değerli Oran:** Model tahmini piyasa olasılığından eşik değerden (%5) fazla olduğunda işaretlenir.")
 
-def display_h2h_tab(h2h_stats: Optional[Dict], team_names: Dict):
+def display_h2h_tab(h2h_stats: Optional[Dict], team_names: Dict, team_ids: Dict):
     st.subheader(f"⚔️ {team_names['a']} vs {team_names['b']}: Kafa Kafaya Analiz")
-    if h2h_stats:
-        summary = h2h_stats['summary']
-        goals = h2h_stats['goals']
-        c1, c2, c3, c4 = st.columns(4)
-        c1.metric("Toplam Maç", summary['total_matches'])
-        c2.metric(f"{team_names['a']} Galibiyeti", summary['wins_a'])
-        c3.metric(f"{team_names['b']} Galibiyeti", summary['wins_b'])
-        c4.metric("Beraberlik", summary['draws'])
-        st.markdown("---")
-        st.markdown("##### Gol İstatistikleri")
-        goal_df = pd.DataFrame({'İstatistik': ['Toplam Gol', 'Maç Başına Gol'], team_names['a']: [goals['goals_a'], f"{goals['avg_goals_a']:.2f}"], team_names['b']: [goals['goals_b'], f"{goals['avg_goals_b']:.2f}"]}).set_index('İstatistik')
-        st.table(goal_df)
-        st.markdown("---")
-        st.markdown("##### Son Karşılaşmalar")
-        recent_matches_df = pd.DataFrame(h2h_stats['recent_matches'])
-        st.dataframe(recent_matches_df, hide_index=True, use_container_width=True)
-    else:
-        st.warning("İki takım arasında geçmişe dönük karşılaşma verisi bulunamadı.")
+    
+    try:
+        # API v3 ile güncel karşılaşma geçmişi al
+        from football_api_v3 import APIFootballV3
+        api = APIFootballV3(API_KEY)
+        
+        with st.spinner("Karşılaşma geçmişi alınıyor..."):
+            h2h_result = api.get_head_to_head(team_ids['a'], team_ids['b'])
+        
+        if h2h_result.status.value == "success" and h2h_result.data:
+            matches = h2h_result.data
+            
+            # İstatistikleri hesapla
+            total_matches = len(matches)
+            wins_a = 0
+            wins_b = 0
+            draws = 0
+            goals_a = 0
+            goals_b = 0
+            
+            recent_matches = []
+            
+            for match in matches:
+                fixture = match.get('fixture', {})
+                teams = match.get('teams', {})
+                goals = match.get('goals', {})
+                
+                home_team_id = teams.get('home', {}).get('id')
+                away_team_id = teams.get('away', {}).get('id')
+                home_goals = goals.get('home', 0) or 0
+                away_goals = goals.get('away', 0) or 0
+                
+                # Gol sayılarını topla
+                if home_team_id == team_ids['a']:
+                    goals_a += home_goals
+                    goals_b += away_goals
+                    
+                    if home_goals > away_goals:
+                        wins_a += 1
+                    elif away_goals > home_goals:
+                        wins_b += 1
+                    else:
+                        draws += 1
+                else:
+                    goals_a += away_goals
+                    goals_b += home_goals
+                    
+                    if away_goals > home_goals:
+                        wins_a += 1
+                    elif home_goals > away_goals:
+                        wins_b += 1
+                    else:
+                        draws += 1
+                
+                # Son maçlar listesi için
+                match_date = fixture.get('date', '')[:10] if fixture.get('date') else 'Bilinmiyor'
+                league_name = match.get('league', {}).get('name', 'Bilinmiyor')
+                
+                recent_matches.append({
+                    'Tarih': match_date,
+                    'Lig': league_name,
+                    'Ev Sahibi': teams.get('home', {}).get('name', 'Bilinmiyor'),
+                    'Skor': f"{home_goals}-{away_goals}",
+                    'Deplasman': teams.get('away', {}).get('name', 'Bilinmiyor')
+                })
+            
+            # Başarı oranları
+            win_rate_a = (wins_a / total_matches * 100) if total_matches > 0 else 0
+            win_rate_b = (wins_b / total_matches * 100) if total_matches > 0 else 0
+            draw_rate = (draws / total_matches * 100) if total_matches > 0 else 0
+            
+            # Genel istatistikler
+            st.success(f"✅ Son **{total_matches}** karşılaşma bulundu!")
+            
+            c1, c2, c3, c4 = st.columns(4)
+            c1.metric("Toplam Maç", total_matches)
+            c2.metric(f"🏠 {team_names['a']}", f"{wins_a} (%{win_rate_a:.1f})")
+            c3.metric(f"✈️ {team_names['b']}", f"{wins_b} (%{win_rate_b:.1f})")
+            c4.metric("🤝 Beraberlik", f"{draws} (%{draw_rate:.1f})")
+            
+            st.markdown("---")
+            
+            # Gol analizi
+            st.markdown("### ⚽ Gol Analizi")
+            
+            avg_goals_a = goals_a / total_matches if total_matches > 0 else 0
+            avg_goals_b = goals_b / total_matches if total_matches > 0 else 0
+            avg_total_goals = (goals_a + goals_b) / total_matches if total_matches > 0 else 0
+            
+            col1, col2, col3, col4 = st.columns(4)
+            
+            with col1:
+                st.metric(f"🏠 {team_names['a']}", f"{goals_a} gol", delta=f"Ortalama: {avg_goals_a:.2f}")
+            
+            with col2:
+                st.metric(f"✈️ {team_names['b']}", f"{goals_b} gol", delta=f"Ortalama: {avg_goals_b:.2f}")
+            
+            with col3:
+                st.metric("📊 Toplam", f"{goals_a + goals_b} gol", delta=f"Maç başına: {avg_total_goals:.2f}")
+            
+            with col4:
+                # En verimli takım
+                if avg_goals_a > avg_goals_b:
+                    efficiency = f"{team_names['a']} (+{avg_goals_a - avg_goals_b:.2f})"
+                elif avg_goals_b > avg_goals_a:
+                    efficiency = f"{team_names['b']} (+{avg_goals_b - avg_goals_a:.2f})"
+                else:
+                    efficiency = "Dengeli"
+                
+                st.metric("🎯 Gol Verimliliği", efficiency)
+            
+            # Dominasyon analizi
+            st.markdown("---")
+            st.markdown("### 📈 Dominasyon Analizi")
+            
+            if wins_a > wins_b:
+                dominant_team = team_names['a']
+                dominance = (wins_a - wins_b) / total_matches * 100
+                color = "🟢"
+            elif wins_b > wins_a:
+                dominant_team = team_names['b']
+                dominance = (wins_b - wins_a) / total_matches * 100
+                color = "🔴"
+            else:
+                dominant_team = "Dengeli"
+                dominance = 0
+                color = "🟡"
+            
+            st.info(f"{color} **Geçmiş Performans:** {dominant_team} {f'(%{dominance:.1f} fark)' if dominance > 0 else ''}")
+            
+            # Son maçlar
+            st.markdown("---")
+            st.markdown("### 📋 Son Karşılaşmalar")
+            
+            if recent_matches:
+                # Son 10 maçı göster
+                recent_df = pd.DataFrame(recent_matches[:10])
+                st.dataframe(recent_df, hide_index=True, use_container_width=True)
+            
+            # Trend analizi
+            if len(recent_matches) >= 5:
+                st.markdown("---")
+                st.markdown("### 📊 Trend Analizi (Son 5 Maç)")
+                
+                last_5 = recent_matches[:5]
+                last_5_wins_a = 0
+                last_5_wins_b = 0
+                last_5_draws = 0
+                
+                for match in last_5:
+                    home_team = match['Ev Sahibi']
+                    score = match['Skor'].split('-')
+                    home_goals = int(score[0])
+                    away_goals = int(score[1])
+                    
+                    if home_team in [team_names['a'], team_names['b']]:
+                        if home_team == team_names['a']:
+                            if home_goals > away_goals:
+                                last_5_wins_a += 1
+                            elif away_goals > home_goals:
+                                last_5_wins_b += 1
+                            else:
+                                last_5_draws += 1
+                        else:
+                            if away_goals > home_goals:
+                                last_5_wins_a += 1
+                            elif home_goals > away_goals:
+                                last_5_wins_b += 1
+                            else:
+                                last_5_draws += 1
+                
+                col1, col2, col3 = st.columns(3)
+                
+                with col1:
+                    st.metric(f"🏠 {team_names['a']}", f"{last_5_wins_a}/5")
+                
+                with col2:
+                    st.metric("🤝 Beraberlik", f"{last_5_draws}/5")
+                
+                with col3:
+                    st.metric(f"✈️ {team_names['b']}", f"{last_5_wins_b}/5")
+                
+                # Son trend
+                if last_5_wins_a > last_5_wins_b:
+                    trend = f"🔥 {team_names['a']} son dönemde üstün!"
+                elif last_5_wins_b > last_5_wins_a:
+                    trend = f"🔥 {team_names['b']} son dönemde üstün!"
+                else:
+                    trend = "⚡ Son dönemde dengeli mücadele!"
+                
+                st.success(trend)
+        
+        else:
+            # Fallback - eski sistem verileri
+            if h2h_stats:
+                summary = h2h_stats['summary']
+                goals = h2h_stats['goals']
+                c1, c2, c3, c4 = st.columns(4)
+                c1.metric("Toplam Maç", summary['total_matches'])
+                c2.metric(f"{team_names['a']} Galibiyeti", summary['wins_a'])
+                c3.metric(f"{team_names['b']} Galibiyeti", summary['wins_b'])
+                c4.metric("Beraberlik", summary['draws'])
+                st.markdown("---")
+                st.markdown("##### Gol İstatistikleri")
+                goal_df = pd.DataFrame({'İstatistik': ['Toplam Gol', 'Maç Başına Gol'], team_names['a']: [goals['goals_a'], f"{goals['avg_goals_a']:.2f}"], team_names['b']: [goals['goals_b'], f"{goals['avg_goals_b']:.2f}"]}).set_index('İstatistik')
+                st.table(goal_df)
+                st.markdown("---")
+                st.markdown("##### Son Karşılaşmalar")
+                recent_matches_df = pd.DataFrame(h2h_stats['recent_matches'])
+                st.dataframe(recent_matches_df, hide_index=True, use_container_width=True)
+            else:
+                st.warning("⚠️ İki takım arasında geçmişe dönük karşılaşma verisi bulunamadı.")
+                st.info("💡 Bu takımlar daha önce karşılaşmamış olabilir veya veri henüz sistemde bulunmuyor olabilir.")
+    
+    except Exception as e:
+        st.error(f"❌ Karşılaşma geçmişi alınırken hata oluştu: {str(e)}")
+        
+        # Fallback - eski sistem
+        if h2h_stats:
+            summary = h2h_stats['summary']
+            goals = h2h_stats['goals']
+            c1, c2, c3, c4 = st.columns(4)
+            c1.metric("Toplam Maç", summary['total_matches'])
+            c2.metric(f"{team_names['a']} Galibiyeti", summary['wins_a'])
+            c3.metric(f"{team_names['b']} Galibiyeti", summary['wins_b'])
+            c4.metric("Beraberlik", summary['draws'])
+        else:
+            st.warning("İki takım arasında geçmişe dönük karşılaşma verisi bulunamadı.")
         
 def display_parameters_tab(params: Dict, team_names: Dict):
     st.subheader("⚙️ Modelin Kullandığı Parametreler")
@@ -1579,7 +2163,7 @@ def analyze_and_display(team_a_data: Dict, team_b_data: Dict, fixture_id: int, m
     with tab3: display_detailed_betting_tab(analysis, team_names, fixture_id, model_params)
     with tab4: display_injuries_tab(fixture_id, team_names, team_ids, league_info)
     with tab5: display_standings_tab(league_info, team_names)
-    with tab6: display_h2h_tab(processed_h2h, team_names)
+    with tab6: display_h2h_tab(processed_h2h, team_names, team_ids)
     with tab7: display_referee_tab(processed_referee_stats)
     with tab8: display_coaches_tab(team_ids, team_names)
     with tab9: display_venue_tab(fixture_id, fixture_details)
@@ -2282,59 +2866,330 @@ def build_codes_view():
     render_code_finder(embed=False, key_prefix="standalone")
 
 def display_timezone_management():
-    """Saat dilimi yönetimi sayfası"""
+    """Saat dilimi yönetimi ve canlı maç takibi sayfası"""
     st.markdown("""
     <h1 style='text-align: center; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
                -webkit-background-clip: text; -webkit-text-fill-color: transparent; 
                background-clip: text; font-size: 2.5em; margin: 10px 0;'>
-        🌍 Saat Dilimi Yönetimi
+        🌍 Saat Dilimi & Canlı Maçlar
     </h1>
     """, unsafe_allow_html=True)
     
-    st.info("ℹ️ Maç saatlerini farklı saat dilimlerinde görüntülemek için bu sayfayı kullanabilirsiniz.")
+    # Tab sistemi
+    tab1, tab2, tab3 = st.tabs(["🕐 Saat Dilimi", "⚽ Canlı Maçlar", "📅 Bugünkü Maçlar"])
     
-    # Professional analysis engine'i başlat
+    with tab1:
+        display_timezone_section()
+    
+    with tab2:
+        display_live_matches()
+    
+    with tab3:
+        display_todays_matches()
+
+def display_timezone_section():
+    """Saat dilimi seçimi ve görüntüleme"""
+    st.markdown("### 🌍 Saat Dilimi Ayarları")
+    
+    # Türkiye saat dilimleri ve önemli ülkeler
+    timezones = {
+        "🇹🇷 Türkiye": "Europe/Istanbul",
+        "🇬🇧 İngiltere": "Europe/London", 
+        "🇫🇷 Fransa": "Europe/Paris",
+        "🇩🇪 Almanya": "Europe/Berlin",
+        "🇪🇸 İspanya": "Europe/Madrid",
+        "🇮🇹 İtalya": "Europe/Rome",
+        "🇺🇸 New York": "America/New_York",
+        "🇺🇸 Los Angeles": "America/Los_Angeles",
+        "🇺🇸 Chicago": "America/Chicago",
+        "🇯🇵 Tokyo": "Asia/Tokyo",
+        "🇨🇳 Şangay": "Asia/Shanghai",
+        "🇦🇪 Dubai": "Asia/Dubai",
+        "🇦🇺 Sidney": "Australia/Sydney",
+        "🇧🇷 São Paulo": "America/Sao_Paulo",
+        "🇷🇺 Moskova": "Europe/Moscow"
+    }
+    
+    # Saat dilimi seçimi
+    selected_display = st.selectbox("Saat dilimi seçin:", list(timezones.keys()), index=0)
+    selected_tz = timezones[selected_display]
+    
+    # Şu anki saat
+    from datetime import datetime
+    import pytz
+    
     try:
-        from professional_analysis import ProfessionalAnalysisEngine
-        from football_api_v3 import APIFootballV3
+        # UTC ve seçili saat dilimi
+        utc_now = datetime.utcnow().replace(tzinfo=pytz.UTC)
+        local_tz = pytz.timezone(selected_tz)
+        local_time = utc_now.astimezone(local_tz)
         
-        # API wrapper'ı başlat
-        api = APIFootballV3(API_KEY)
+        # Saat bilgilerini göster
+        col1, col2, col3 = st.columns(3)
         
-        # Professional analysis engine'i başlat
-        analysis_engine = ProfessionalAnalysisEngine(api)
+        with col1:
+            st.metric(
+                "🕐 Şu Anki Saat", 
+                local_time.strftime('%H:%M:%S'),
+                delta=f"UTC{local_time.strftime('%z')}"
+            )
         
-        # Timezone management dashboard'u göster
-        analysis_engine.timezone_management_dashboard()
+        with col2:
+            st.metric(
+                "📅 Tarih", 
+                local_time.strftime('%d.%m.%Y'),
+                delta=local_time.strftime('%A')
+            )
+        
+        with col3:
+            utc_time = utc_now.strftime('%H:%M:%S')
+            st.metric(
+                "🌐 UTC Saat",
+                utc_time,
+                delta="Evrensel Saat"
+            )
+        
+        # Session state'e kaydet
+        st.session_state.selected_timezone = selected_tz
+        
+        st.success(f"✅ Saat dilimi **{selected_display}** olarak ayarlandı")
         
     except Exception as e:
-        st.error(f"Saat dilimi yönetimi yüklenirken hata oluştu: {e}")
+        st.error(f"❌ Saat dilimi bilgisi alınamadı: {e}")
+
+def display_live_matches():
+    """Canlı maçları göster"""
+    st.markdown("### ⚽ Canlı Maçlar")
+    
+    try:
+        from football_api_v3 import APIFootballV3
         
-        # Fallback - basit timezone listesi
-        st.markdown("### 🌍 Kullanılabilir Saat Dilimleri")
+        api = APIFootballV3(API_KEY)
         
-        # Temel saat dilimleri listesi
-        timezones = [
-            "Europe/London", "Europe/Paris", "Europe/Istanbul", "Europe/Madrid",
-            "America/New_York", "America/Los_Angeles", "America/Chicago",
-            "Asia/Tokyo", "Asia/Shanghai", "Asia/Dubai", "Australia/Sydney"
-        ]
-        
-        selected_tz = st.selectbox("Saat dilimi seçin:", timezones)
-        
-        if selected_tz:
+        with st.spinner("Canlı maçlar alınıyor..."):
+            # Bugünkü canlı maçları al
             from datetime import datetime
-            import pytz
+            today = datetime.now().strftime('%Y-%m-%d')
             
-            try:
-                tz = pytz.timezone(selected_tz)
-                current_time = datetime.now(tz)
+            fixtures_result = api.get_fixtures(date=today, live=True)
+            
+        if fixtures_result.status.value == "success" and fixtures_result.data:
+            live_matches = fixtures_result.data
+            
+            st.success(f"🔴 **{len(live_matches)} canlı maç** bulundu!")
+            
+            for match in live_matches:
+                display_live_match_card(match)
                 
-                st.success(f"📍 **{selected_tz}** saat diliminde şu anki saat: **{current_time.strftime('%H:%M:%S')}**")
-                st.info(f"📅 Tarih: {current_time.strftime('%d.%m.%Y')}")
+        else:
+            st.info("📺 Şu anda canlı maç bulunmuyor")
+            
+            # Yaklaşan maçları göster
+            st.markdown("### ⏰ Yaklaşan Maçlar")
+            display_upcoming_matches_today()
+            
+    except Exception as e:
+        st.error(f"❌ Canlı maçlar alınırken hata oluştu: {e}")
+
+def display_live_match_card(match):
+    """Canlı maç kartını göster"""
+    try:
+        # Maç bilgileri
+        home_team = match.get('teams', {}).get('home', {}).get('name', 'Bilinmiyor')
+        away_team = match.get('teams', {}).get('away', {}).get('name', 'Bilinmiyor')
+        home_score = match.get('goals', {}).get('home', 0)
+        away_score = match.get('goals', {}).get('away', 0)
+        minute = match.get('fixture', {}).get('status', {}).get('elapsed', 0)
+        league_name = match.get('league', {}).get('name', 'Bilinmiyor')
+        
+        # Maç durumu
+        status_short = match.get('fixture', {}).get('status', {}).get('short', 'NS')
+        status_long = match.get('fixture', {}).get('status', {}).get('long', 'Başlamamış')
+        
+        # Türkçe durum çevirisi
+        status_tr = {
+            'NS': 'Başlamamış',
+            'TBD': 'Ertelenmiş', 
+            '1H': 'İlk Yarı',
+            'HT': 'Devre Arası',
+            '2H': 'İkinci Yarı',
+            'ET': 'Uzatma',
+            'FT': 'Bitti',
+            'AET': 'Uzatmalarda Bitti',
+            'PEN': 'Penaltılarda Bitti',
+            'LIVE': 'Canlı'
+        }.get(status_short, status_long)
+        
+        # Kart stilini belirle
+        if status_short in ['1H', '2H', 'ET']:
+            card_color = "#ff4444"  # Kırmızı - Canlı
+            status_icon = "🔴"
+        elif status_short == 'HT':
+            card_color = "#ffaa00"  # Turuncu - Devre arası
+            status_icon = "🟠"
+        elif status_short == 'FT':
+            card_color = "#44ff44"  # Yeşil - Bitti
+            status_icon = "🟢"
+        else:
+            card_color = "#4444ff"  # Mavi - Diğer
+            status_icon = "🔵"
+        
+        # Maç kartı
+        with st.container():
+            st.markdown(f"""
+            <div style="
+                border-left: 4px solid {card_color}; 
+                padding: 15px; 
+                margin: 10px 0; 
+                background-color: #1e1e1e; 
+                border-radius: 8px;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+            ">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <div>
+                        <h4 style="margin: 0; color: #ffffff;">
+                            {status_icon} {home_team} <span style="color: {card_color};">{home_score}-{away_score}</span> {away_team}
+                        </h4>
+                        <p style="margin: 5px 0; color: #cccccc;">
+                            🏆 {league_name}
+                        </p>
+                        <p style="margin: 0; color: {card_color}; font-weight: bold;">
+                            ⏱️ {status_tr} {f"({minute}')" if minute and status_short in ['1H', '2H', 'ET'] else ""}
+                        </p>
+                    </div>
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+            
+    except Exception as e:
+        st.error(f"Maç kartı gösterilirken hata: {e}")
+
+def display_todays_matches():
+    """Bugünkü tüm maçları göster"""
+    st.markdown("### 📅 Bugünkü Tüm Maçlar")
+    
+    try:
+        from football_api_v3 import APIFootballV3
+        from datetime import datetime
+        import pytz
+        
+        api = APIFootballV3(API_KEY)
+        
+        # Seçili saat dilimi
+        timezone = st.session_state.get('selected_timezone', 'Europe/Istanbul')
+        
+        with st.spinner("Bugünkü maçlar alınıyor..."):
+            today = datetime.now().strftime('%Y-%m-%d')
+            fixtures_result = api.get_fixtures(date=today)
+            
+        if fixtures_result.status.value == "success" and fixtures_result.data:
+            todays_matches = fixtures_result.data
+            
+            st.success(f"📅 **{len(todays_matches)} maç** bugün oynanacak!")
+            
+            # Liglere göre grupla
+            leagues = {}
+            for match in todays_matches:
+                league_name = match.get('league', {}).get('name', 'Diğer')
+                if league_name not in leagues:
+                    leagues[league_name] = []
+                leagues[league_name].append(match)
+            
+            # Her lig için ayrı bölüm
+            for league_name, matches in leagues.items():
+                st.markdown(f"#### 🏆 {league_name}")
                 
-            except Exception as e:
-                st.error(f"Saat dilimi bilgisi alınamadı: {e}")
+                for match in matches:
+                    display_todays_match_card(match, timezone)
+                    
+        else:
+            st.info("📭 Bugün maç bulunamadı")
+            
+    except Exception as e:
+        st.error(f"❌ Bugünkü maçlar alınırken hata oluştu: {e}")
+
+def display_todays_match_card(match, timezone):
+    """Bugünkü maç kartını göster"""
+    try:
+        from datetime import datetime
+        import pytz
+        
+        # Maç bilgileri
+        home_team = match.get('teams', {}).get('home', {}).get('name', 'Bilinmiyor')
+        away_team = match.get('teams', {}).get('away', {}).get('name', 'Bilinmiyor')
+        
+        # Maç saati
+        match_timestamp = match.get('fixture', {}).get('timestamp', 0)
+        if match_timestamp:
+            utc_time = datetime.fromtimestamp(match_timestamp, tz=pytz.UTC)
+            local_tz = pytz.timezone(timezone)
+            local_time = utc_time.astimezone(local_tz)
+            time_str = local_time.strftime('%H:%M')
+        else:
+            time_str = "TBD"
+        
+        # Maç durumu
+        status_short = match.get('fixture', {}).get('status', {}).get('short', 'NS')
+        
+        if status_short in ['FT', 'AET', 'PEN']:
+            # Bitmiş maç
+            home_score = match.get('goals', {}).get('home', 0)
+            away_score = match.get('goals', {}).get('away', 0)
+            score_text = f"{home_score}-{away_score}"
+            status_color = "#44ff44"
+        elif status_short in ['1H', '2H', 'ET', 'HT']:
+            # Canlı maç
+            home_score = match.get('goals', {}).get('home', 0)
+            away_score = match.get('goals', {}).get('away', 0)
+            score_text = f"{home_score}-{away_score} (CANLI)"
+            status_color = "#ff4444"
+        else:
+            # Başlamamış
+            score_text = time_str
+            status_color = "#4444ff"
+        
+        # Maç kartı
+        col1, col2, col3 = st.columns([3, 2, 3])
+        
+        with col1:
+            st.write(f"🏠 **{home_team}**")
+        
+        with col2:
+            st.markdown(f"<div style='text-align: center; color: {status_color}; font-weight: bold;'>{score_text}</div>", unsafe_allow_html=True)
+        
+        with col3:
+            st.write(f"✈️ **{away_team}**")
+            
+    except Exception as e:
+        st.error(f"Maç kartı gösterilirken hata: {e}")
+
+def display_upcoming_matches_today():
+    """Bugün oynanacak yaklaşan maçları göster"""
+    try:
+        from football_api_v3 import APIFootballV3
+        from datetime import datetime, timedelta
+        
+        api = APIFootballV3(API_KEY)
+        
+        # Önümüzdeki 6 saat içindeki maçları al
+        now = datetime.now()
+        end_time = now + timedelta(hours=6)
+        
+        fixtures_result = api.get_fixtures(
+            date=now.strftime('%Y-%m-%d'),
+            status='NS'  # Başlamamış maçlar
+        )
+        
+        if fixtures_result.status.value == "success" and fixtures_result.data:
+            upcoming = fixtures_result.data[:5]  # İlk 5 maç
+            
+            st.markdown("#### ⏰ Yaklaşan 5 Maç")
+            
+            for match in upcoming:
+                display_todays_match_card(match, st.session_state.get('selected_timezone', 'Europe/Istanbul'))
+                
+    except Exception as e:
+        st.info("Yaklaşan maçlar gösterilemedi")
 
 def display_coaches_management():
     """Antrenör yönetimi sayfası"""
