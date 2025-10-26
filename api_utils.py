@@ -965,7 +965,7 @@ def get_fixtures_by_date(api_key: str, base_url: str, selected_league_ids: List[
 
 def get_team_id(api_key: str, base_url: str, team_input: str, season: Optional[int] = None) -> Optional[Dict[str, Any]]:
     """
-    Modern team search with enhanced error handling and season support
+    Universal team search with comprehensive fallback mechanisms
     """
     # Initialize API if not already done
     from football_api_v3 import initialize_api, APIStatus
@@ -973,112 +973,144 @@ def get_team_id(api_key: str, base_url: str, team_input: str, season: Optional[i
     try:
         api = initialize_api(api_key)
         
-        # Determine current season if not provided
-        if not season:
-            season = api.get_current_season()
-        
-        # Enhanced search with Turkish team name mapping
-        turkish_team_mapping = {
-            'galatasaray': 644,
-            'gala': 644,
-            'gs': 644,
-            'cimbom': 644,
-            'fenerbahce': 645,
-            'fenerbahçe': 645,
-            'fener': 645,
-            'fb': 645,
-            'besiktas': 646,
-            'beşiktaş': 646,
-            'bjk': 646,
-            'kartal': 646,
-            'trabzonspor': 643,
-            'trabzon': 643,
-            'ts': 643,
-            'basaksehir': 3569,
-            'başakşehir': 3569,
-            'konyaspor': 3568,
-            'konya': 3568,
-            'sivasspor': 2833,
-            'sivas': 2833
+        # Turkish team shortcuts for quick mapping
+        turkish_teams = {
+            'galatasaray': 644, 'gala': 644, 'gs': 644, 'cimbom': 644,
+            'fenerbahce': 645, 'fenerbahçe': 645, 'fener': 645, 'fb': 645,
+            'besiktas': 646, 'beşiktaş': 646, 'bjk': 646, 'kartal': 646,
+            'trabzonspor': 643, 'trabzon': 643, 'ts': 643,
+            'basaksehir': 3569, 'başakşehir': 3569
         }
         
-        # Normalize team input (remove spaces, lowercase, trim)
-        normalized_input = team_input.strip().lower().replace(' ', '')
-        
-        # Search by ID if input is numeric
+        # Strategy 1: Direct ID lookup if numeric
         if team_input.isdigit():
-            result = api.get_team_by_id(int(team_input), season)
-        # Check Turkish team mapping first (both original and normalized)
-        elif team_input.lower() in turkish_team_mapping or normalized_input in turkish_team_mapping:
-            team_id = turkish_team_mapping.get(team_input.lower()) or turkish_team_mapping.get(normalized_input)
-            result = api.get_team_by_id(team_id, season)
-        else:
-            # Try original search first
-            result = api.search_teams(team_input, season=season)
-            
-            # If no results with original, try without spaces and special chars
-            if result.status.value == "success" and (not result.data or len(result.data) == 0):
-                clean_input = ''.join(c for c in team_input if c.isalnum())
-                if clean_input != team_input:
-                    result = api.search_teams(clean_input, season=season)
+            result = api.get_team_by_id(int(team_input))
+            if result.status.value == "success" and result.data:
+                team_data = result.data[0] if isinstance(result.data, list) else result.data
+                if team_data and 'team' in team_data:
+                    team_info = team_data['team']
+                elif team_data:
+                    team_info = team_data
+                else:
+                    team_info = None
+                    
+                if team_info:
+                    return format_team_response(team_info)
         
-        # Handle API response
-        if result.status.value == "error":
-            if STREAMLIT_AVAILABLE:
-                st.sidebar.error(f"❌ API Hatası: {result.error}")
-            return None
+        # Strategy 2: Turkish team shortcut
+        team_lower = team_input.strip().lower()
+        if team_lower in turkish_teams:
+            result = api.get_team_by_id(turkish_teams[team_lower])
+            if result.status.value == "success" and result.data:
+                team_data = result.data[0] if isinstance(result.data, list) else result.data
+                team_info = team_data.get('team', team_data) if team_data else None
+                if team_info:
+                    return format_team_response(team_info)
         
-        if result.status.value == "rate_limit":
-            if STREAMLIT_AVAILABLE:
-                st.sidebar.error("⚠️ API rate limit aşıldı. Lütfen bekleyip tekrar deneyin.")
-            return None
+        # Strategy 3: Search without season (most flexible)
+        if STREAMLIT_AVAILABLE:
+            st.sidebar.info(f"🔍 Aranıyor: {team_input}")
         
-        if not result.data or len(result.data) == 0:
-            if STREAMLIT_AVAILABLE:
-                st.sidebar.warning(f"⚠️ '{team_input}' takımı bulunamadı.")
-            return None
-        
-        teams = result.data
-        
-        # Eğer birden fazla sonuç varsa, popüler takımları üste getir
-        if len(teams) > 1:
-            # Popüler takım ID'leri
-            popular_teams = [
-                644, 645, 646, 643, 3569, 3568, 2833,  # Türkiye (Galatasaray=644, Fenerbahçe=645, Beşiktaş=646)
-                33, 34, 40, 42, 47, 49, 50,  # İngiltere  
-                529, 530, 531, 532, 533,  # İspanya
-                489, 487, 488, 492, 496, 500, 505,  # İtalya
-                157, 165, 173, 168, 172,  # Almanya
-                85, 79, 81, 80, 84,  # Fransa
-            ]
-            
-            def get_priority(team_item):
-                team_id = team_item['team']['id']
-                if team_id in popular_teams:
-                    return popular_teams.index(team_id)
-                return 999
-            
-            # Popülerliğe göre sırala
-            teams.sort(key=get_priority)
-        
-        team_data = teams[0]['team']
+        result = api.search_teams(team_input)
         
         if STREAMLIT_AVAILABLE:
-            st.sidebar.success(f"✅ Bulunan: {team_data['name']} ({team_data['id']})")
+            st.sidebar.info(f"📊 API Status: {result.status.value}")
+            if result.data:
+                st.sidebar.info(f"📋 Bulunan sonuç sayısı: {len(result.data)}")
         
-        return {
-            'id': team_data['id'], 
-            'name': team_data['name'], 
-            'logo': team_data.get('logo'),
-            'country': team_data.get('country'),
-            'founded': team_data.get('founded'),
-            'venue_name': team_data.get('venue', {}).get('name') if team_data.get('venue') else None
-        }
+        if result.status.value == "success" and result.data and len(result.data) > 0:
+            return process_team_search_results(result.data)
+        elif result.status.value == "error":
+            if STREAMLIT_AVAILABLE:
+                st.sidebar.error(f"❌ API Hatası: {result.error}")
+        elif result.status.value == "rate_limit":
+            if STREAMLIT_AVAILABLE:
+                st.sidebar.error("⚠️ API rate limit aşıldı")
         
+        # Strategy 4: Search with current season if provided
+        if season:
+            result = api.search_teams(team_input, season=season)
+            if result.status.value == "success" and result.data and len(result.data) > 0:
+                return process_team_search_results(result.data)
+        
+        # Strategy 5: Clean search (remove special characters)
+        clean_input = ''.join(c for c in team_input if c.isalnum() or c.isspace()).strip()
+        if clean_input != team_input and clean_input:
+            result = api.search_teams(clean_input)
+            if result.status.value == "success" and result.data and len(result.data) > 0:
+                return process_team_search_results(result.data)
+        
+        # Strategy 6: Last resort - search major leagues
+        major_leagues = [39, 140, 78, 135, 61]  # Premier, La Liga, Bundesliga, Serie A, Ligue 1
+        for league_id in major_leagues:
+            try:
+                result = api.search_teams(team_input, league_id=league_id)
+                if result.status.value == "success" and result.data and len(result.data) > 0:
+                    return process_team_search_results(result.data)
+            except:
+                continue
+        
+        # No results found - detailed debug info
+        if STREAMLIT_AVAILABLE:
+            st.sidebar.error(f"❌ '{team_input}' takımı hiçbir stratejide bulunamadı.")
+            st.sidebar.info("🔍 Denenen stratejiler: ID lookup, Turkish shortcuts, global search, season search, clean search, major leagues")
+        return None
+
     except Exception as e:
         if STREAMLIT_AVAILABLE:
             st.sidebar.error(f"❌ Takım arama hatası: {str(e)}")
         return None
+
+def format_team_response(team_info: Dict[str, Any]) -> Dict[str, Any]:
+    """Format team info into standard response"""
+    if STREAMLIT_AVAILABLE:
+        st.sidebar.success(f"✅ Bulunan: {team_info['name']} ({team_info['id']})")
+    
+    return {
+        'id': team_info['id'], 
+        'name': team_info['name'], 
+        'logo': team_info.get('logo'),
+        'country': team_info.get('country'),
+        'founded': team_info.get('founded'),
+        'venue_name': team_info.get('venue', {}).get('name') if team_info.get('venue') else None
+    }
+
+def process_team_search_results(teams: List[Dict[str, Any]]) -> Dict[str, Any]:
+    """Process team search results with priority sorting"""
+    if not teams:
+        return None    # Priority order for popular teams
+    popular_teams = [
+        644, 645, 646, 643, 3569, 3568, 2833,  # Turkey
+        33, 34, 40, 42, 47, 49, 50,  # England  
+        529, 530, 531, 532, 533,  # Spain
+        489, 487, 488, 492, 496, 500, 505,  # Italy
+        157, 165, 173, 168, 172,  # Germany
+        85, 79, 81, 80, 84,  # France
+    ]
+    
+    def get_priority(team_item):
+        # Handle different response formats
+        if 'team' in team_item:
+            team_id = team_item['team']['id']
+        else:
+            team_id = team_item.get('id', 0)
+        
+        if team_id in popular_teams:
+            return popular_teams.index(team_id)
+        return 999
+    
+    # Sort by priority if multiple results
+    if len(teams) > 1:
+        teams.sort(key=get_priority)
+    
+    # Extract team data from first result
+    first_team = teams[0]
+    if 'team' in first_team:
+        team_data = first_team['team']
+    else:
+        team_data = first_team
+    
+    return format_team_response(team_data)
 
 @st.cache_data(ttl=18000)
 def get_team_injuries(api_key: str, base_url: str, team_id: int, fixture_id: Optional[int] = None) -> Tuple[Optional[List[Dict[str, Any]]], Optional[str]]:
