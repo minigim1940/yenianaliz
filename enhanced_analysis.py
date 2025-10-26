@@ -6,7 +6,7 @@ from api_utils import (
     get_api_predictions, get_betting_odds, get_team_top_players,
     get_fixtures_lineups, get_fixture_players_stats, get_team_transfers,
     get_league_top_scorers, get_league_top_assists, get_fixtures_by_date,
-    search_team_fixtures_advanced, get_team_upcoming_fixtures
+    search_team_fixtures_advanced, get_team_upcoming_fixtures, get_team_id
 )
 
 def display_enhanced_match_analysis(api_key: str, base_url: str):
@@ -87,11 +87,19 @@ def display_team_analysis(api_key: str, base_url: str):
     
     if team_name and st.button("🔍 Takım Analizi Yap", type="primary"):
         with st.spinner(f"{team_name} takımı analiz ediliyor..."):
+            # Önce takım ID'sini bul
+            team_data = get_team_id(api_key, base_url, team_name)
+            
+        if not team_data:
+            st.error(f"Takım bulunamadı: {team_name}")
+            return
+            
+        with st.spinner(f"{team_data['name']} yaklaşan maçları getiriliyor..."):
             # Yaklaşan maçları bul
-            fixtures, error = get_team_upcoming_fixtures(api_key, base_url, team_name)
+            fixtures, error = get_team_upcoming_fixtures(api_key, base_url, team_data['id'])
             
         if error:
-            st.error(f"Takım bulunamadı: {error}")
+            st.error(f"Maç bilgileri alınamadı: {error}")
             return
             
         if not fixtures:
@@ -114,8 +122,12 @@ def display_team_analysis(api_key: str, base_url: str):
         for fixture in fixtures[:3]:  # İlk 3 maçı göster
             display_enhanced_fixture_card(api_key, base_url, fixture)
             
-        # Oyuncu istatistikleri
-        display_team_players_analysis(api_key, base_url, team_info['id'], 2024)
+        # Oyuncu istatistikleri - team_id'yi int'e güvenli dönüştür
+        try:
+            team_id = int(team_data['id']) if isinstance(team_data['id'], str) else team_data['id']
+            display_team_players_analysis(api_key, base_url, team_id, 2024)
+        except (ValueError, TypeError, KeyError):
+            st.info("Oyuncu istatistikleri için team ID alınamadı.")
 
 def display_league_statistics(api_key: str, base_url: str):
     """Lig istatistikleri"""
@@ -255,22 +267,33 @@ def display_betting_odds(api_key: str, base_url: str, fixture_id: int):
         return
         
     for bookmaker in odds[:3]:  # İlk 3 bahis sitesini göster
-        st.markdown(f"**{bookmaker['bookmaker']['name']}**")
+        # Bookmaker name'e güvenli erişim
+        bookmaker_name = bookmaker.get('name', 'Bilinmeyen Bahis Sitesi')
+        if 'bookmaker' in bookmaker:
+            bookmaker_name = bookmaker['bookmaker'].get('name', bookmaker_name)
+        st.markdown(f"**{bookmaker_name}**")
         
-        for bet in bookmaker['bets']:
-            if bet['name'] == 'Match Winner':
+        # Bets'e güvenli erişim
+        bets = bookmaker.get('bets', [])
+        if not bets:
+            st.info("Bu bahis sitesi için oran bilgisi mevcut değil.")
+            continue
+            
+        for bet in bets:
+            if bet.get('name') == 'Match Winner':
                 col1, col2, col3 = st.columns(3)
                 
-                for value in bet['values']:
-                    if value['value'] == 'Home':
+                values = bet.get('values', [])
+                for value in values:
+                    if value.get('value') == 'Home':
                         with col1:
-                            st.metric("Ev Sahibi", value['odd'])
-                    elif value['value'] == 'Draw':
+                            st.metric("Ev Sahibi", value.get('odd', 'N/A'))
+                    elif value.get('value') == 'Draw':
                         with col2:
-                            st.metric("Beraberlik", value['odd'])
-                    elif value['value'] == 'Away':
+                            st.metric("Beraberlik", value.get('odd', 'N/A'))
+                    elif value.get('value') == 'Away':
                         with col3:
-                            st.metric("Deplasman", value['odd'])
+                            st.metric("Deplasman", value.get('odd', 'N/A'))
                 break
 
 def display_lineups(api_key: str, base_url: str, fixture_id: int):
@@ -302,8 +325,18 @@ def display_match_statistics(api_key: str, base_url: str, fixture_id: int):
         st.markdown(f"### {team_stats['team']['name']}")
         
         if team_stats.get('players'):
+            # Güvenli rating dönüştürme fonksiyonu
+            def safe_rating_sort(player):
+                try:
+                    rating = player['statistics'][0].get('games', {}).get('rating')
+                    if rating is None:
+                        return 0.0
+                    return float(rating) if isinstance(rating, (int, float, str)) else 0.0
+                except:
+                    return 0.0
+            
             best_players = sorted(team_stats['players'], 
-                                key=lambda x: x['statistics'][0].get('games', {}).get('rating', 0) or 0, 
+                                key=safe_rating_sort, 
                                 reverse=True)[:5]
             
             for player in best_players:
@@ -322,10 +355,19 @@ def display_team_players_analysis(api_key: str, base_url: str, team_id: int, sea
         st.info("Oyuncu bilgileri alınamadı.")
         return
         
-    # En iyi oyuncuları göster
-    best_players = sorted(players, 
-                         key=lambda x: x['statistics'][0].get('games', {}).get('rating', 0) or 0, 
-                         reverse=True)[:10]
+    # En iyi oyuncuları göster - rating değerini güvenli şekilde dönüştür
+    def safe_rating(player):
+        try:
+            rating = player.get('statistics', [{}])[0].get('games', {}).get('rating', 0)
+            if rating is None:
+                return 0
+            if isinstance(rating, str):
+                return float(rating) if rating.replace('.', '').isdigit() else 0
+            return float(rating)
+        except (ValueError, TypeError, IndexError):
+            return 0
+    
+    best_players = sorted(players, key=safe_rating, reverse=True)[:10]
     
     for i, player in enumerate(best_players, 1):
         stat = player['statistics'][0]

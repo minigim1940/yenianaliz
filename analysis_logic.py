@@ -76,7 +76,15 @@ def process_h2h_data(h2h_matches: List[Dict], team_a_id: int) -> Optional[Dict]:
                 goals_a += score_away
                 goals_b += score_home
             
-            match_date = datetime.fromtimestamp(match['fixture']['timestamp']).strftime('%d.%m.%Y')
+            # Güvenli tarih formatlama
+            try:
+                timestamp = match['fixture'].get('timestamp')
+                if timestamp:
+                    match_date = datetime.fromtimestamp(timestamp).strftime('%d.%m.%Y')
+                else:
+                    match_date = match['fixture'].get('date', 'N/A')[:10]  # ISO date'den sadece tarih kısmı
+            except (KeyError, ValueError, TypeError):
+                match_date = "Tarih bilgisi yok"
             recent_matches_display.append({
                 "Tarih": match_date,
                 "Ev Sahibi": match['teams']['home']['name'],
@@ -540,9 +548,9 @@ def calculate_odds_based_adjustment(odds_data: Optional[Dict], model_win_a: floa
     odds_draw = odds_data['draw']['prob'] / 100.0
     odds_win_b = odds_data['away']['prob'] / 100.0
     
-    # Ağırlıklı ortalama: %70 model + %30 piyasa
-    MODEL_WEIGHT = 0.70
-    ODDS_WEIGHT = 0.30
+    # Ağırlıklı ortalama: %80 model + %20 piyasa (Model daha güvenilir)
+    MODEL_WEIGHT = 0.80
+    ODDS_WEIGHT = 0.20
     
     adjusted_win_a = (model_win_a_decimal * MODEL_WEIGHT) + (odds_win_a * ODDS_WEIGHT)
     adjusted_draw = (model_draw_decimal * MODEL_WEIGHT) + (odds_draw * ODDS_WEIGHT)
@@ -1274,31 +1282,31 @@ def run_core_analysis(api_key, base_url, id_a, id_b, name_a, name_b, fixture_id,
     # Önce Elo farkını hesapla ve temel ayarlamayı yap
     elo_diff = rating_home - rating_away
     
-    # Elo farkına göre çok daha agresif ayarlama (DÜŞÜK EŞİKLER)
+    # ELO etkilerini azalt, güncel form ve istatistiklere daha fazla ağırlık ver
     if elo_diff < -150:  # Deplasman çok güçlü (örn: PSG)
-        elo_boost_away = 1.40
-        elo_nerf_home = 0.70
+        elo_boost_away = 1.25  # Azaltıldı (1.40 → 1.25)
+        elo_nerf_home = 0.80   # Azaltıldı (0.70 → 0.80)
     elif elo_diff < -80:
-        elo_boost_away = 1.32
-        elo_nerf_home = 0.78
-    elif elo_diff < -40:  # KÜÇÜK FARKLAR BİLE ETKİLİ
-        elo_boost_away = 1.25
-        elo_nerf_home = 0.85
-    elif elo_diff < -15:  # -15 ile -40 arası (Amed örneği -30)
-        elo_boost_away = 1.18
-        elo_nerf_home = 0.90
+        elo_boost_away = 1.20  # Azaltıldı (1.32 → 1.20)
+        elo_nerf_home = 0.85   # Azaltıldı (0.78 → 0.85)
+    elif elo_diff < -40:  # ELO etkisi azaltıldı
+        elo_boost_away = 1.15  # Azaltıldı (1.25 → 1.15)
+        elo_nerf_home = 0.90   # Azaltıldı (0.85 → 0.90)
+    elif elo_diff < -15:  # -15 ile -40 arası
+        elo_boost_away = 1.10  # Azaltıldı (1.18 → 1.10)
+        elo_nerf_home = 0.95   # Azaltıldı (0.90 → 0.95)
     elif elo_diff > 150:  # Ev sahibi çok güçlü
-        elo_boost_away = 0.70
-        elo_nerf_home = 1.35
+        elo_boost_away = 0.80  # Azaltıldı (0.70 → 0.80)
+        elo_nerf_home = 1.25   # Azaltıldı (1.35 → 1.25)
     elif elo_diff > 80:
-        elo_boost_away = 0.78
-        elo_nerf_home = 1.28
-    elif elo_diff > 40:  # KÜÇÜK FARKLAR BİLE ETKİLİ
-        elo_boost_away = 0.85
-        elo_nerf_home = 1.22
+        elo_boost_away = 0.85  # Azaltıldı (0.78 → 0.85)
+        elo_nerf_home = 1.20   # Azaltıldı (1.28 → 1.20)
+    elif elo_diff > 40:  # ELO etkisi azaltıldı
+        elo_boost_away = 0.90  # Azaltıldı (0.85 → 0.90)
+        elo_nerf_home = 1.15   # Azaltıldı (1.22 → 1.15)
     elif elo_diff > 15:  # +15 ile +40 arası
-        elo_boost_away = 0.90
-        elo_nerf_home = 1.15
+        elo_boost_away = 0.95  # Azaltıldı (0.90 → 0.95)
+        elo_nerf_home = 1.08   # Azaltıldı (1.15 → 1.08)
     else:  # -15 ile +15 arası: Gerçekten dengeli
         elo_boost_away = 1.0
         elo_nerf_home = 1.0
@@ -1316,8 +1324,9 @@ def run_core_analysis(api_key, base_url, id_a, id_b, name_a, name_b, fixture_id,
     
     lambda_b = base_lambda_b * att_mult_b * def_mult_a
 
-    lambda_a *= min(1.08, max(0.92, form_factor_a))
-    lambda_b *= min(1.08, max(0.92, form_factor_b))
+    # Form faktörü etkisini artır (güncel performans daha önemli)
+    lambda_a *= min(1.15, max(0.85, form_factor_a))  # %15 max etki (önceden %8)
+    lambda_b *= min(1.15, max(0.85, form_factor_b))  # %15 max etki (önceden %8)
     
     # 🆕 YENİ FAKTÖRLER - Gelişmiş Analiz Sistemi
     
@@ -1447,16 +1456,16 @@ def run_core_analysis(api_key, base_url, id_a, id_b, name_a, name_b, fixture_id,
     # Performans bazlı "sanal ELO farkı"
     performance_diff = (home_power_score - away_power_score) * 2.5  # -450 ile +450 arası
     
-    # ELO farkı küçükse performans farkını kullan
+    # ELO farkı küçükse performans farkını kullan (Güncel form ağırlığı artırıldı)
     if abs(elo_diff) < 50:
-        # ELO güvenilmez, performans farkını ağırlıkla kullan
-        adjusted_elo_diff = (elo_diff * 0.3) + (performance_diff * 0.7)
+        # ELO güvenilmez, performans farkını daha çok ağırlıkla kullan
+        adjusted_elo_diff = (elo_diff * 0.2) + (performance_diff * 0.8)
     elif abs(elo_diff) < 150:
-        # Orta güven, 50-50 karışım
-        adjusted_elo_diff = (elo_diff * 0.6) + (performance_diff * 0.4)
+        # Orta güven, performans odaklı karışım
+        adjusted_elo_diff = (elo_diff * 0.4) + (performance_diff * 0.6)
     else:
-        # ELO güvenilir, ama performansı da ekle
-        adjusted_elo_diff = (elo_diff * 0.85) + (performance_diff * 0.15)
+        # ELO güvenilir, ama performans hala daha önemli
+        adjusted_elo_diff = (elo_diff * 0.6) + (performance_diff * 0.4)
     
     # 📊 ELO BAZLI DENGELİ SİSTEM (Düzeltilmiş ELO ile)
     # Artık "gerçek güç farkı" kullanılıyor
