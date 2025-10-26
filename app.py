@@ -3017,27 +3017,80 @@ def display_live_matches():
     """Canlı maçları göster"""
     st.markdown("### ⚽ Canlı Maçlar")
     
-    # Auto-refresh butonu
-    col1, col2, col3 = st.columns([2, 1, 1])
+    # Auto-refresh kontrolleri
+    col1, col2, col3, col4 = st.columns([2, 1, 1, 1])
     
     with col1:
-        auto_refresh = st.checkbox("🔄 Otomatik Yenile (30 saniye)", key="auto_refresh_live")
+        auto_refresh = st.checkbox("🔄 Otomatik Yenile", key="auto_refresh_live")
     
     with col2:
+        # Yenileme aralığı seçimi
+        refresh_interval = st.selectbox(
+            "📱 Aralık",
+            options=[5, 10, 15, 30, 60],
+            index=0,  # Default 5 saniye
+            format_func=lambda x: f"{x}sn",
+            key="refresh_interval_live"
+        )
+    
+    with col3:
         if st.button("🔄 Şimdi Yenile", key="manual_refresh_live"):
             st.rerun()
     
-    with col3:
+    with col4:
         # Son güncelleme zamanı
         from datetime import datetime
         current_time = datetime.now().strftime("%H:%M:%S")
-        st.write(f"⏰ Son: {current_time}")
+        st.write(f"⏰ {current_time}")
     
-    # Auto-refresh logic
+    # Gelişmiş otomatik yenileme sistemi
     if auto_refresh:
+        # Session state'de son güncelleme zamanını takip et
         import time
-        time.sleep(30)
-        st.rerun()
+        current_timestamp = time.time()
+        
+        if 'last_live_update' not in st.session_state:
+            st.session_state.last_live_update = current_timestamp
+        
+        time_since_update = current_timestamp - st.session_state.last_live_update
+        
+        # Eğer belirlenen aralık geçtiyse güncelle
+        if time_since_update >= refresh_interval:
+            st.session_state.last_live_update = current_timestamp
+            st.rerun()
+        
+        # Kullanıcı bilgilendirmesi ve countdown
+        remaining_time = refresh_interval - int(time_since_update)
+        
+        if remaining_time > 0:
+            # Daha hızlı güncelleme için meta refresh tag kullan
+            st.markdown(f"""
+            <meta http-equiv="refresh" content="{remaining_time}">
+            """, unsafe_allow_html=True)
+            
+            # Progress bar countdown
+            progress = time_since_update / refresh_interval
+            st.progress(
+                min(progress, 1.0), 
+                text=f"🔄 **{remaining_time}sn** sonra yenilenecek | Aralık: **{refresh_interval}sn** | Son güncelleme: **{int(time_since_update)}sn** önce"
+            )
+            
+            # Canlı durum göstergesi ve performans uyarıları
+            if refresh_interval <= 5:
+                st.markdown("� **Süper Hızlı Mod** - 5 saniye aralıkla güncelleme")
+                st.warning("⚡ Yüksek frekanslı güncelleme aktif - API kullanımı artabilir")
+            elif refresh_interval <= 10:
+                st.markdown("🟢 **Hızlı Mod** - 10 saniye aralıkla güncelleme") 
+                st.info("� Optimum canlı maç takip hızı")
+            elif refresh_interval <= 30:
+                st.markdown("�🔵 **Normal Mod** - Standart güncelleme aralığı")
+            else:
+                st.markdown("🟡 **Tasarruf Modu** - Düşük frekanslı güncelleme")
+        else:
+            st.success(f"🔄 **Otomatik yenileme aktif** - Her {refresh_interval} saniyede güncelleniyor")
+    
+    else:
+        st.info("💡 **İpucu:** Canlı skorları takip etmek için 'Otomatik Yenile' özelliğini açın. 5 saniye aralığı en güncel bilgi için önerilir.")
     
     try:
         from football_api_v3 import APIFootballV3
@@ -3191,11 +3244,11 @@ def display_live_match_card(match):
         
         # Ek bilgiler (sadece canlı maçlarda)
         if status_short in ['1H', '2H', 'ET', 'LIVE']:
-            col1, col2, col3 = st.columns(3)
+            col1, col2, col3, col4 = st.columns(4)
             
             with col1:
-                # Son olayları göster (eğer varsa)
-                st.caption("🔥 Canlı")
+                # Canlı durum göstergesi
+                st.markdown("� **CANLI**")
                 
             with col2:
                 st.caption(f"🏆 {league_name}")
@@ -3204,11 +3257,39 @@ def display_live_match_card(match):
                 # Dakika bazlı günceleme
                 if minute:
                     if minute > 45 and status_short == '1H':
-                        st.caption("⏰ Uzatma dakikaları")
+                        st.caption("⏰ İlk yarı uzatması")
                     elif minute > 90 and status_short == '2H':
-                        st.caption("⏰ Uzatma dakikaları")
+                        st.caption("⏰ İkinci yarı uzatması")
                     else:
                         st.caption(f"⏱️ {minute}. dakika")
+                        
+            with col4:
+                # Güncelleme durumu
+                import time
+                current_time = time.time()
+                if hasattr(st.session_state, 'last_live_update'):
+                    seconds_ago = int(current_time - st.session_state.last_live_update)
+                    if seconds_ago < 10:
+                        st.caption(f"🟢 {seconds_ago}sn önce")
+                    elif seconds_ago < 30:
+                        st.caption(f"🟡 {seconds_ago}sn önce")
+                    else:
+                        st.caption(f"🔴 {seconds_ago}sn önce")
+                else:
+                    st.caption("🔄 İlk güncelleme")
+        
+        elif status_short == 'HT':
+            # Devre arası özel bilgiler
+            col1, col2, col3 = st.columns(3)
+            
+            with col1:
+                st.markdown("🟠 **DEVRE ARASI**")
+                
+            with col2:
+                st.caption(f"🏆 {league_name}")
+                
+            with col3:
+                st.caption("☕ 15 dakika ara")
         
         # Ayırıcı
         st.markdown("---")
