@@ -1,0 +1,204 @@
+{% extends "base.html" %}
+
+{% block title %}Gelişmiş Analiz - Güvenilir Analiz{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header bg-success text-white">
+                    <h4 class="mb-0">
+                        <i class="fas fa-chart-line me-2"></i>
+                        Gelişmiş Analiz
+                    </h4>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group mb-3">
+                                <label for="homeTeam" class="form-label">Ev Sahibi Takım:</label>
+                                <input type="text" class="form-control" id="homeTeam" 
+                                       placeholder="Örn: Galatasaray, Real Madrid">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group mb-3">
+                                <label for="awayTeam" class="form-label">Deplasman Takımı:</label>
+                                <input type="text" class="form-control" id="awayTeam" 
+                                       placeholder="Örn: Fenerbahçe, Barcelona">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-12 text-center">
+                            <button type="button" class="btn btn-success btn-lg" onclick="performAnalysis()">
+                                <i class="fas fa-search me-2"></i>
+                                Gelişmiş Analiz Yap
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <hr class="my-4">
+                    
+                    <!-- Analiz Sonuçları -->
+                    <div id="analysisResults" class="d-none">
+                        <div class="alert alert-info">
+                            <h5 class="alert-heading">
+                                <i class="fas fa-info-circle me-2"></i>
+                                Analiz Sonuçları
+                            </h5>
+                            <div id="analysisContent">
+                                <!-- Analiz sonuçları buraya gelecek -->
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Yükleme Göstergesi -->
+                    <div id="loadingIndicator" class="text-center d-none">
+                        <div class="spinner-border text-success" role="status">
+                            <span class="visually-hidden">Analiz yapılıyor...</span>
+                        </div>
+                        <p class="mt-2">Analiz yapılıyor, lütfen bekleyin...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Özellikler -->
+    <div class="row mt-4">
+        <div class="col-md-4">
+            <div class="card border-success">
+                <div class="card-body text-center">
+                    <i class="fas fa-trophy fa-3x text-success mb-3"></i>
+                    <h5>Elo Rating Sistemi</h5>
+                    <p class="text-muted">Takımların güncel güç seviyelerini analiz eder</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card border-success">
+                <div class="card-body text-center">
+                    <i class="fas fa-chart-bar fa-3x text-success mb-3"></i>
+                    <h5>İstatistiksel Analiz</h5>
+                    <p class="text-muted">Geçmiş performans verilerini değerlendirir</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card border-success">
+                <div class="card-body text-center">
+                    <i class="fas fa-brain fa-3x text-success mb-3"></i>
+                    <h5>Yapay Zeka</h5>
+                    <p class="text-muted">Gelişmiş algoritmalarla sonuç tahmini</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function performAnalysis() {
+    const homeTeam = document.getElementById('homeTeam').value.trim();
+    const awayTeam = document.getElementById('awayTeam').value.trim();
+    
+    if (!homeTeam || !awayTeam) {
+        alert('Lütfen her iki takım adını da girin.');
+        return;
+    }
+    
+    // Yükleme göstergisini göster
+    document.getElementById('loadingIndicator').classList.remove('d-none');
+    document.getElementById('analysisResults').classList.add('d-none');
+    
+    // Form verilerini hazırla
+    const formData = new FormData();
+    formData.append('home_team', homeTeam);
+    formData.append('away_team', awayTeam);
+    
+    // API çağrısı yap
+    fetch('/api/analyze', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        // Yükleme göstergisini gizle
+        document.getElementById('loadingIndicator').classList.add('d-none');
+        
+        if (data.error) {
+            throw new Error(data.error);
+        }
+        
+        // Sonuçları göster
+        displayAnalysisResults(data);
+    })
+    .catch(error => {
+        console.error('Analiz hatası:', error);
+        document.getElementById('loadingIndicator').classList.add('d-none');
+        alert('Analiz sırasında bir hata oluştu: ' + error.message);
+    });
+}
+
+function displayAnalysisResults(data) {
+    const content = `
+        <div class="row">
+            <div class="col-md-6">
+                <h6><strong>${data.home_team}</strong></h6>
+                <ul class="list-unstyled">
+                    <li><strong>Elo Rating:</strong> ${data.home_elo || 'N/A'}</li>
+                    <li><strong>Kazanma Olasılığı:</strong> %${data.home_win_prob || '0'}</li>
+                    <li><strong>Beklenen Gol:</strong> ${data.home_goals || '0'}</li>
+                    <li><strong>Form:</strong> ${data.form_home || 'N/A'}</li>
+                </ul>
+            </div>
+            <div class="col-md-6">
+                <h6><strong>${data.away_team}</strong></h6>
+                <ul class="list-unstyled">
+                    <li><strong>Elo Rating:</strong> ${data.away_elo || 'N/A'}</li>
+                    <li><strong>Kazanma Olasılığı:</strong> %${data.away_win_prob || '0'}</li>
+                    <li><strong>Beklenen Gol:</strong> ${data.away_goals || '0'}</li>
+                    <li><strong>Form:</strong> ${data.form_away || 'N/A'}</li>
+                </ul>
+            </div>
+        </div>
+        <div class="row mt-3">
+            <div class="col-md-4">
+                <div class="alert alert-success">
+                    <h6><strong>Ana Tahmin:</strong></h6>
+                    <p class="mb-1">${data.prediction || 'Analiz tamamlanamadı'}</p>
+                    <small><strong>Güven:</strong> %${data.confidence || '0'}</small>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="alert alert-info">
+                    <h6><strong>Gol Tahminleri:</strong></h6>
+                    <p class="mb-1"><strong>2.5 Üst:</strong> %${data.over_2_5 || '0'}</p>
+                    <p class="mb-0"><strong>2.5 Alt:</strong> %${data.under_2_5 || '0'}</p>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="alert alert-warning">
+                    <h6><strong>Karşılıklı Gol:</strong></h6>
+                    <p class="mb-1"><strong>BTTS Evet:</strong> %${data.btts_yes || '0'}</p>
+                    <p class="mb-0"><strong>BTTS Hayır:</strong> %${data.btts_no || '0'}</p>
+                </div>
+            </div>
+        </div>
+        <div class="row mt-3">
+            <div class="col-12">
+                <div class="alert alert-secondary">
+                    <h6><strong>Beraberlik Olasılığı:</strong> %${data.draw_prob || '0'}</h6>
+                    <p class="mb-0"><small><em>${data.analysis_type || 'Temel Analiz'}</em></small></p>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    document.getElementById('analysisContent').innerHTML = content;
+    document.getElementById('analysisResults').classList.remove('d-none');
+}
+</script>
+{% endblock %}

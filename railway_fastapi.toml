@@ -1,0 +1,17 @@
+# Railway Configuration for FastAPI
+[build]
+builder = "nixpacks"
+
+[deploy]
+startCommand = "uvicorn main_fastapi:app --host 0.0.0.0 --port $PORT"
+restartPolicyType = "on_failure"
+restartPolicyMaxRetries = 3
+
+[env]
+# Environment variables will be set in Railway dashboard
+# API_KEY = "your-api-key-here"
+# DATABASE_URL = "sqlite:///./app.db"
+
+[settings]
+generateDomain = true
+autoUpdate = true

@@ -4,9 +4,22 @@
 import math
 from typing import Dict, Any, List, Optional
 from datetime import datetime
-import streamlit as st
 import api_utils
 import elo_utils
+
+# Streamlit compatibility check
+try:
+    import streamlit as st
+    STREAMLIT_AVAILABLE = True
+except ImportError:
+    STREAMLIT_AVAILABLE = False
+    # No-op decorator for non-Streamlit environments
+    class st:
+        @staticmethod
+        def cache_data(ttl=None, show_spinner=None):
+            def decorator(func):
+                return func
+            return decorator
 
 def process_player_stats(player_data: Optional[List[Dict]]) -> Optional[str]:
     """Oyuncu istatistik verisini işleyip okunabilir bir metin döner."""

@@ -1,0 +1,710 @@
+{% extends "base.html" %}
+
+{% block title %}Gelişmiş Analiz - Güvenilir Analiz{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <!-- Analiz Formu -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header bg-success text-white">
+                    <h4 class="mb-0">
+                        <i class="fas fa-chart-line me-2"></i>
+                        Gelişmiş Maç Analizi
+                    </h4>
+                </div>
+                <div class="card-body">
+                    <form method="post" action="/analyze">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-group mb-3">
+                                    <label for="team1" class="form-label">Ev Sahibi Takım:</label>
+                                    <div class="position-relative">
+                                        <input type="text" class="form-control" id="team1" name="team1" 
+                                               placeholder="Takım adı yazın..." required autocomplete="off">
+                                        <div id="team1-suggestions" class="suggestions-dropdown"></div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group mb-3">
+                                    <label for="team2" class="form-label">Deplasman Takımı:</label>
+                                    <div class="position-relative">
+                                        <input type="text" class="form-control" id="team2" name="team2" 
+                                               placeholder="Takım adı yazın..." required autocomplete="off">
+                                        <div id="team2-suggestions" class="suggestions-dropdown"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-12 text-center">
+                                <button type="submit" class="btn btn-success btn-lg">
+                                    <i class="fas fa-brain me-2"></i>
+                                    AI Analiz Yap
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Analiz Sonuçları -->
+    {% if analysis_result %}
+    <div id="analysisResults">
+        {% if analysis_result.success %}
+            <!-- Temel Bilgiler -->
+            <div class="row mb-4">
+                <div class="col-md-12">
+                    <div class="card border-primary">
+                        <div class="card-header bg-primary text-white">
+                            <h5 class="mb-0">
+                                <i class="fas fa-robot me-2"></i>
+                                AI Destekli Maç Analizi: {{ analysis_result.team1 }} vs {{ analysis_result.team2 }}
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="row align-items-center">
+                                <div class="col-md-5 text-center">
+                                    <div class="team-section">
+                                        {% if analysis_result.team1_logo %}
+                                        <img src="{{ analysis_result.team1_logo }}" alt="{{ analysis_result.team1 }}" 
+                                             class="team-logo mb-2" style="width: 60px; height: 60px; object-fit: contain;">
+                                        {% endif %}
+                                        <h6><strong>{{ analysis_result.team1 }}</strong></h6>
+                                        {% if analysis_result.team1_league %}
+                                        <small class="text-muted">{{ analysis_result.team1_league }}</small>
+                                        {% endif %}
+                                        <ul class="list-unstyled mt-2">
+                                            <li><strong>AI Elo Rating:</strong> {{ analysis_result.team1_elo or 'N/A' }}</li>
+                                            <li><strong>Form Durumu:</strong> {{ analysis_result.team1_form or 'N/A' }}</li>
+                                            <li><strong>AI Güç Puanı:</strong> {{ analysis_result.team1_strength or 'N/A' }}/100</li>
+                                        </ul>
+                                    </div>
+                                </div>
+                                <div class="col-md-2 text-center">
+                                    <h3 class="text-primary mb-0">VS</h3>
+                                    <div class="mt-2">
+                                        <i class="fas fa-brain fa-2x text-success" title="AI Powered"></i>
+                                    </div>
+                                </div>
+                                <div class="col-md-5 text-center">
+                                    <div class="team-section">
+                                        {% if analysis_result.team2_logo %}
+                                        <img src="{{ analysis_result.team2_logo }}" alt="{{ analysis_result.team2 }}" 
+                                             class="team-logo mb-2" style="width: 60px; height: 60px; object-fit: contain;">
+                                        {% endif %}
+                                        <h6><strong>{{ analysis_result.team2 }}</strong></h6>
+                                        {% if analysis_result.team2_league %}
+                                        <small class="text-muted">{{ analysis_result.team2_league }}</small>
+                                        {% endif %}
+                                        <ul class="list-unstyled mt-2">
+                                            <li><strong>AI Elo Rating:</strong> {{ analysis_result.team2_elo or 'N/A' }}</li>
+                                            <li><strong>Form Durumu:</strong> {{ analysis_result.team2_form or 'N/A' }}</li>
+                                            <li><strong>AI Güç Puanı:</strong> {{ analysis_result.team2_strength or 'N/A' }}/100</li>
+                                        </ul>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Model Tahminleri -->
+            {% if analysis_result.model_predictions %}
+            <div class="row mb-4">
+                <div class="col-md-12">
+                    <div class="card border-success">
+                        <div class="card-header bg-success text-white">
+                            <h5 class="mb-0">
+                                <i class="fas fa-cogs me-2"></i>
+                                AI Model Tahminleri
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                {% for model, prediction in analysis_result.model_predictions.items() %}
+                                <div class="col-md-6 col-lg-4 mb-3">
+                                    <div class="card h-100">
+                                        <div class="card-body">
+                                            <h6 class="card-title">
+                                                {{ model }}
+                                                {% if prediction.accuracy %}
+                                                <span class="badge bg-info ms-1">{{ "%.1f"|format(prediction.accuracy * 100) }}%</span>
+                                                {% endif %}
+                                            </h6>
+                                            <p class="card-text small">
+                                                <strong>{{ analysis_result.team1 }} Kazanma:</strong> 
+                                                <span class="text-success">{{ "%.1f"|format(prediction.team1_win * 100) }}%</span><br>
+                                                <strong>Beraberlik:</strong> 
+                                                <span class="text-warning">{{ "%.1f"|format(prediction.draw * 100) }}%</span><br>
+                                                <strong>{{ analysis_result.team2 }} Kazanma:</strong> 
+                                                <span class="text-danger">{{ "%.1f"|format(prediction.team2_win * 100) }}%</span>
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Final Tahmini -->
+            {% if analysis_result.final_prediction %}
+            <div class="row mb-4">
+                <div class="col-md-12">
+                    <div class="card border-success">
+                        <div class="card-header bg-success text-white">
+                            <h5 class="mb-0">
+                                <i class="fas fa-trophy me-2"></i>
+                                Final Tahmini
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="row text-center">
+                                <div class="col-md-4">
+                                    <div class="p-3 border rounded">
+                                        <h6 class="text-success">{{ analysis_result.team1 }} Galibiyeti</h6>
+                                        <div class="display-6 text-success">%{{ "%.1f"|format(analysis_result.final_prediction.team1_win_prob) }}</div>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="p-3 border rounded">
+                                        <h6 class="text-warning">Beraberlik</h6>
+                                        <div class="display-6 text-warning">%{{ "%.1f"|format(analysis_result.final_prediction.draw_prob) }}</div>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="p-3 border rounded">
+                                        <h6 class="text-danger">{{ analysis_result.team2 }} Galibiyeti</h6>
+                                        <div class="display-6 text-danger">%{{ "%.1f"|format(analysis_result.final_prediction.team2_win_prob) }}</div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="text-center mt-4">
+                                <h5 class="text-primary">
+                                    <i class="fas fa-star me-2"></i>
+                                    Önerilen Bahis: {{ analysis_result.final_prediction.recommended_bet }}
+                                </h5>
+                                <p class="text-muted">
+                                    <i class="fas fa-chart-line me-1"></i>
+                                    Güven Skoru: <span class="fw-bold">%{{ "%.1f"|format(analysis_result.final_prediction.confidence_score) }}</span>
+                                </p>
+                                <div class="row mt-3">
+                                    <div class="col-md-6">
+                                        <small class="text-muted">
+                                            <i class="fas fa-futbol me-1"></i>
+                                            Beklenen {{ analysis_result.team1 }} Golü: {{ analysis_result.final_prediction.expected_goals_team1 }}
+                                        </small>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <small class="text-muted">
+                                            <i class="fas fa-futbol me-1"></i>
+                                            Beklenen {{ analysis_result.team2 }} Golü: {{ analysis_result.final_prediction.expected_goals_team2 }}
+                                        </small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Kritik İçgörüler ve Bahis Önerileri -->
+            <div class="row mb-4">
+                <div class="col-md-6">
+                    <!-- Kritik İçgörüler -->
+                    {% if analysis_result.insights %}
+                    <div class="card border-info">
+                        <div class="card-header bg-info text-white">
+                            <h5 class="mb-0">
+                                <i class="fas fa-lightbulb me-2"></i>
+                                Kritik İçgörüler
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <ul class="list-unstyled">
+                                {% for insight in analysis_result.insights %}
+                                <li class="mb-3">
+                                    <i class="fas fa-check-circle text-info me-2"></i>
+                                    {{ insight }}
+                                </li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+                <div class="col-md-6">
+                    <!-- Bahis Önerileri -->
+                    {% if analysis_result.betting_suggestions %}
+                    <div class="card border-success">
+                        <div class="card-header bg-success text-white">
+                            <h5 class="mb-0">
+                                <i class="fas fa-coins me-2"></i>
+                                Bahis Önerileri
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            {% for bet in analysis_result.betting_suggestions %}
+                            <div class="betting-suggestion mb-3 p-2 border rounded">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <strong>{{ bet.type }}</strong>
+                                        <div class="text-success">{{ bet.suggestion }}</div>
+                                    </div>
+                                    <div class="text-end">
+                                        <div class="badge bg-primary">{{ bet.odds }}</div>
+                                        <div class="small text-muted">%{{ bet.confidence }} güven</div>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Risk Faktörleri -->
+            {% if analysis_result.risk_factors %}
+            <div class="row mb-4">
+                <div class="col-md-12">
+                    <div class="card border-warning">
+                        <div class="card-header bg-warning text-dark">
+                            <h5 class="mb-0">
+                                <i class="fas fa-exclamation-triangle me-2"></i>
+                                Risk Faktörleri
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                {% for risk in analysis_result.risk_factors %}
+                                <div class="col-md-4 mb-3">
+                                    <div class="risk-factor p-3 border rounded">
+                                        <h6 class="fw-bold">{{ risk.factor }}</h6>
+                                        <div class="mb-2">
+                                            {% if risk.impact == 'Yüksek' %}
+                                            <span class="badge bg-danger">{{ risk.impact }} Risk</span>
+                                            {% elif risk.impact == 'Orta' %}
+                                            <span class="badge bg-warning">{{ risk.impact }} Risk</span>
+                                            {% else %}
+                                            <span class="badge bg-success">{{ risk.impact }} Risk</span>
+                                            {% endif %}
+                                        </div>
+                                        <small class="text-muted">{{ risk.description }}</small>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Gelişmiş Analiz Faktörleri -->
+            {% if analysis_result.advanced_factors %}
+            
+            <!-- Lig Puan Durumu -->
+            {% if analysis_result.advanced_factors.league_standings %}
+            <div class="row mb-4">
+                <div class="col-12">
+                    <div class="card border-info">
+                        <div class="card-header bg-info text-white">
+                            <h5 class="mb-0">🏆 Lig Puan Durumu Analizi</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <h6 class="text-primary">{{ analysis_result.team1_formatted }}</h6>
+                                    <ul class="list-unstyled">
+                                        <li><strong>Lig Sırası:</strong> {{ analysis_result.advanced_factors.league_standings.team1_position }}. sıra</li>
+                                        <li><strong>Puan:</strong> {{ analysis_result.advanced_factors.league_standings.team1_points }} puan</li>
+                                        <li><strong>Oynanan Maç:</strong> {{ analysis_result.advanced_factors.league_standings.team1_played }}</li>
+                                        <li><strong>Maç Başına Puan:</strong> {{ analysis_result.advanced_factors.league_standings.team1_ppg }}</li>
+                                    </ul>
+                                </div>
+                                <div class="col-md-6">
+                                    <h6 class="text-danger">{{ analysis_result.team2_formatted }}</h6>
+                                    <ul class="list-unstyled">
+                                        <li><strong>Lig Sırası:</strong> {{ analysis_result.advanced_factors.league_standings.team2_position }}. sıra</li>
+                                        <li><strong>Puan:</strong> {{ analysis_result.advanced_factors.league_standings.team2_points }} puan</li>
+                                        <li><strong>Oynanan Maç:</strong> {{ analysis_result.advanced_factors.league_standings.team2_played }}</li>
+                                        <li><strong>Maç Başına Puan:</strong> {{ analysis_result.advanced_factors.league_standings.team2_ppg }}</li>
+                                    </ul>
+                                </div>
+                            </div>
+                            <div class="alert alert-info mt-3">
+                                <strong>Sıralama Farkı:</strong> {{ analysis_result.advanced_factors.league_standings.position_diff }} sıra | 
+                                <strong>Puan Farkı:</strong> {{ analysis_result.advanced_factors.league_standings.points_diff }} puan
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+            
+            <!-- Form Durumu Detayı -->
+            {% if analysis_result.advanced_factors.form_analysis %}
+            <div class="row mb-4">
+                <div class="col-12">
+                    <div class="card border-success">
+                        <div class="card-header bg-success text-white">
+                            <h5 class="mb-0">📈 Form Durumu Detay Analizi</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <h6 class="text-primary">{{ analysis_result.team1_formatted }}</h6>
+                                    <ul class="list-unstyled">
+                                        <li><strong>Mevcut Form:</strong> %{{ analysis_result.advanced_factors.form_analysis.team1_current_form }}</li>
+                                        <li><strong>Form Trendi:</strong> {{ analysis_result.advanced_factors.form_analysis.form_trend_team1 }}</li>
+                                        <li><strong>Son 5 Maç:</strong> {{ analysis_result.advanced_factors.form_analysis.last_5_games_team1 }}</li>
+                                    </ul>
+                                </div>
+                                <div class="col-md-6">
+                                    <h6 class="text-danger">{{ analysis_result.team2_formatted }}</h6>
+                                    <ul class="list-unstyled">
+                                        <li><strong>Mevcut Form:</strong> %{{ analysis_result.advanced_factors.form_analysis.team2_current_form }}</li>
+                                        <li><strong>Form Trendi:</strong> {{ analysis_result.advanced_factors.form_analysis.form_trend_team2 }}</li>
+                                        <li><strong>Son 5 Maç:</strong> {{ analysis_result.advanced_factors.form_analysis.last_5_games_team2 }}</li>
+                                    </ul>
+                                </div>
+                            </div>
+                            <div class="alert alert-success mt-3">
+                                <strong>Form Avantajı:</strong> {{ analysis_result.advanced_factors.form_analysis.form_advantage }}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+            
+            <div class="row mb-4">
+                <div class="col-md-12">
+                    <div class="card border-primary">
+                        <div class="card-header bg-primary text-white">
+                            <h5 class="mb-0">
+                                <i class="fas fa-microscope me-2"></i>
+                                Detaylı Analiz Faktörleri
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <!-- H2H Analizi -->
+                                <div class="col-md-6 col-lg-4 mb-4">
+                                    <div class="card h-100 border-info">
+                                        <div class="card-header bg-info text-white">
+                                            <h6 class="mb-0"><i class="fas fa-history me-1"></i> Kafa Kafaya (H2H)</h6>
+                                        </div>
+                                        <div class="card-body small">
+                                            <p><strong>Toplam Maç:</strong> {{ analysis_result.advanced_factors.h2h_analysis.total_matches }}</p>
+                                            <p><strong>{{ analysis_result.team1 }} Galibiyet:</strong> {{ analysis_result.advanced_factors.h2h_analysis.team1_wins }}</p>
+                                            <p><strong>Beraberlik:</strong> {{ analysis_result.advanced_factors.h2h_analysis.draws }}</p>
+                                            <p><strong>{{ analysis_result.team2 }} Galibiyet:</strong> {{ analysis_result.advanced_factors.h2h_analysis.team2_wins }}</p>
+                                            <p><strong>Son Karşılaşma:</strong> {{ analysis_result.advanced_factors.h2h_analysis.last_meeting }}</p>
+                                            <div class="badge bg-info">{{ analysis_result.advanced_factors.h2h_analysis.dominance }}</div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Momentum Faktörü -->
+                                <div class="col-md-6 col-lg-4 mb-4">
+                                    <div class="card h-100 border-success">
+                                        <div class="card-header bg-success text-white">
+                                            <h6 class="mb-0"><i class="fas fa-trending-up me-1"></i> Momentum Analizi</h6>
+                                        </div>
+                                        <div class="card-body small">
+                                            <p><strong>{{ analysis_result.team1 }} Momentum:</strong> <span class="badge bg-success">{{ analysis_result.advanced_factors.momentum_factor.team1_momentum }}%</span></p>
+                                            <p><strong>{{ analysis_result.team2 }} Momentum:</strong> <span class="badge bg-warning">{{ analysis_result.advanced_factors.momentum_factor.team2_momentum }}%</span></p>
+                                            <p><strong>Son 5 Maç Puanı:</strong></p>
+                                            <p>{{ analysis_result.team1 }}: {{ analysis_result.advanced_factors.momentum_factor.team1_last_5_points }}/15</p>
+                                            <p>{{ analysis_result.team2 }}: {{ analysis_result.advanced_factors.momentum_factor.team2_last_5_points }}/15</p>
+                                            <div class="badge bg-success">{{ analysis_result.advanced_factors.momentum_factor.trend }}</div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Ev-Deplasman Performansı -->
+                                <div class="col-md-6 col-lg-4 mb-4">
+                                    <div class="card h-100 border-warning">
+                                        <div class="card-header bg-warning text-dark">
+                                            <h6 class="mb-0"><i class="fas fa-home me-1"></i> Ev-Deplasman</h6>
+                                        </div>
+                                        <div class="card-body small">
+                                            <p><strong>{{ analysis_result.team1 }} Ev:</strong> %{{ analysis_result.advanced_factors.home_away_performance.team1_home_winrate }}</p>
+                                            <p><strong>{{ analysis_result.team1 }} Deplasman:</strong> %{{ analysis_result.advanced_factors.home_away_performance.team1_away_winrate }}</p>
+                                            <p><strong>{{ analysis_result.team2 }} Ev:</strong> %{{ analysis_result.advanced_factors.home_away_performance.team2_home_winrate }}</p>
+                                            <p><strong>{{ analysis_result.team2 }} Deplasman:</strong> %{{ analysis_result.advanced_factors.home_away_performance.team2_away_winrate }}</p>
+                                            <div class="badge bg-success">{{ analysis_result.advanced_factors.home_away_performance.venue_factor }}</div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Dinlenme Faktörü -->
+                                <div class="col-md-6 col-lg-4 mb-4">
+                                    <div class="card h-100 border-secondary">
+                                        <div class="card-header bg-secondary text-white">
+                                            <h6 class="mb-0"><i class="fas fa-bed me-1"></i> Dinlenme Durumu</h6>
+                                        </div>
+                                        <div class="card-body small">
+                                            <p><strong>{{ analysis_result.team1 }} Dinlenme:</strong> {{ analysis_result.advanced_factors.rest_factors.team1_days_rest }} gün</p>
+                                            <p><strong>{{ analysis_result.team2 }} Dinlenme:</strong> {{ analysis_result.advanced_factors.rest_factors.team2_days_rest }} gün</p>
+                                            <p><strong>Avantaj:</strong> {{ analysis_result.advanced_factors.rest_factors.rest_advantage }}</p>
+                                            <div class="badge bg-secondary">{{ analysis_result.advanced_factors.rest_factors.fatigue_level_team1 }} Yorgunluk</div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Kadro Değeri -->
+                                <div class="col-md-6 col-lg-4 mb-4">
+                                    <div class="card h-100 border-dark">
+                                        <div class="card-header bg-dark text-white">
+                                            <h6 class="mb-0"><i class="fas fa-euro-sign me-1"></i> Kadro Değeri</h6>
+                                        </div>
+                                        <div class="card-body small">
+                                            <p><strong>{{ analysis_result.team1 }}:</strong> €{{ analysis_result.advanced_factors.squad_value_analysis.team1_value }}M</p>
+                                            <p><strong>{{ analysis_result.team2 }}:</strong> €{{ analysis_result.advanced_factors.squad_value_analysis.team2_value }}M</p>
+                                            <p><strong>Kalite Farkı:</strong> {{ analysis_result.advanced_factors.squad_value_analysis.quality_difference }}</p>
+                                            <div class="badge bg-dark">{{ analysis_result.advanced_factors.squad_value_analysis.expensive_team }} Üstün</div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Hücum-Savunma Endeksleri -->
+                                <div class="col-md-6 col-lg-4 mb-4">
+                                    <div class="card h-100 border-danger">
+                                        <div class="card-header bg-danger text-white">
+                                            <h6 class="mb-0"><i class="fas fa-sword me-1"></i> Hücum Endeksi</h6>
+                                        </div>
+                                        <div class="card-body small">
+                                            <p><strong>{{ analysis_result.team1 }} Hücum:</strong> <span class="badge bg-danger">{{ analysis_result.advanced_factors.attack_indices.team1_attack_power }}</span></p>
+                                            <p><strong>{{ analysis_result.team2 }} Hücum:</strong> <span class="badge bg-warning">{{ analysis_result.advanced_factors.attack_indices.team2_attack_power }}</span></p>
+                                            <p><strong>Kreativite:</strong> {{ analysis_result.advanced_factors.attack_indices.team1_creativity }} vs {{ analysis_result.advanced_factors.attack_indices.team2_creativity }}</p>
+                                            <p><strong>Biticilik:</strong> {{ analysis_result.advanced_factors.attack_indices.team1_finishing }} vs {{ analysis_result.advanced_factors.attack_indices.team2_finishing }}</p>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Savunma Endeksi -->
+                                <div class="col-md-6 col-lg-4 mb-4">
+                                    <div class="card h-100 border-primary">
+                                        <div class="card-header bg-primary text-white">
+                                            <h6 class="mb-0"><i class="fas fa-shield-alt me-1"></i> Savunma Endeksi</h6>
+                                        </div>
+                                        <div class="card-body small">
+                                            <p><strong>{{ analysis_result.team1 }} Savunma:</strong> <span class="badge bg-primary">{{ analysis_result.advanced_factors.defense_indices.team1_defense_solidity }}</span></p>
+                                            <p><strong>{{ analysis_result.team2 }} Savunma:</strong> <span class="badge bg-info">{{ analysis_result.advanced_factors.defense_indices.team2_defense_solidity }}</span></p>
+                                            <p><strong>Hava Savunması:</strong> {{ analysis_result.advanced_factors.defense_indices.team1_aerial_defense }} vs {{ analysis_result.advanced_factors.defense_indices.team2_aerial_defense }}</p>
+                                            <p><strong>Pressing:</strong> {{ analysis_result.advanced_factors.defense_indices.team1_pressing }} vs {{ analysis_result.advanced_factors.defense_indices.team2_pressing }}</p>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Tempo Analizi -->
+                                <div class="col-md-6 col-lg-4 mb-4">
+                                    <div class="card h-100 border-info">
+                                        <div class="card-header bg-info text-white">
+                                            <h6 class="mb-0"><i class="fas fa-tachometer-alt me-1"></i> Tempo Endeksi</h6>
+                                        </div>
+                                        <div class="card-body small">
+                                            <p><strong>{{ analysis_result.team1 }} Tempo:</strong> {{ analysis_result.advanced_factors.tempo_analysis.team1_avg_tempo }}</p>
+                                            <p><strong>{{ analysis_result.team2 }} Tempo:</strong> {{ analysis_result.advanced_factors.tempo_analysis.team2_avg_tempo }}</p>
+                                            <p><strong>Eğilim:</strong> {{ analysis_result.advanced_factors.tempo_analysis.possession_tendency }}</p>
+                                            <div class="badge bg-info">{{ analysis_result.advanced_factors.tempo_analysis.style_compatibility }}</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+        {% else %}
+            <!-- Hata Durumu -->
+            <div class="row">
+                <div class="col-md-12">
+                    <div class="alert alert-danger">
+                        <h5>Hata!</h5>
+                        <p>{{ analysis_result.error or 'Analiz sırasında hata oluştu' }}</p>
+                    </div>
+                </div>
+            </div>
+        {% endif %}
+    </div>
+    {% endif %}
+
+    <!-- Özellikler -->
+    <div class="row mt-4">
+        <div class="col-md-4">
+            <div class="card border-success">
+                <div class="card-body text-center">
+                    <i class="fas fa-trophy fa-3x text-success mb-3"></i>
+                    <h5>Elo Rating Sistemi</h5>
+                    <p class="text-muted">Takımların güncel güç seviyelerini analiz eder</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card border-info">
+                <div class="card-body text-center">
+                    <i class="fas fa-chart-line fa-3x text-info mb-3"></i>
+                    <h5>AI Destekli Tahmin</h5>
+                    <p class="text-muted">5 farklı makine öğrenmesi modeliyle analiz</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card border-warning">
+                <div class="card-body text-center">
+                    <i class="fas fa-dice fa-3x text-warning mb-3"></i>
+                    <h5>Monte Carlo Simülasyonu</h5>
+                    <p class="text-muted">1000 iterasyon ile olasılık hesaplama</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.suggestions-dropdown {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: white;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    max-height: 200px;
+    overflow-y: auto;
+    z-index: 1000;
+    display: none;
+}
+
+.suggestion-item {
+    padding: 10px;
+    cursor: pointer;
+    border-bottom: 1px solid #eee;
+}
+
+.suggestion-item:hover {
+    background-color: #f8f9fa;
+}
+
+.suggestion-team {
+    font-weight: bold;
+    color: #007bff;
+}
+
+.suggestion-league {
+    font-size: 0.8em;
+    color: #6c757d;
+    margin-left: 5px;
+}
+
+.team-logo {
+    border-radius: 50%;
+    border: 2px solid #dee2e6;
+}
+
+.betting-suggestion {
+    transition: all 0.3s ease;
+}
+
+.betting-suggestion:hover {
+    background-color: #f8f9fa;
+    transform: translateY(-2px);
+}
+
+.risk-factor {
+    transition: all 0.3s ease;
+}
+
+.risk-factor:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+</style>
+
+<script>
+let searchTimeout;
+
+function setupTeamSearch(inputId, suggestionsId) {
+    const input = document.getElementById(inputId);
+    const suggestions = document.getElementById(suggestionsId);
+    
+    input.addEventListener('input', function() {
+        clearTimeout(searchTimeout);
+        const query = this.value.trim();
+        
+        if (query.length < 2) {
+            suggestions.style.display = 'none';
+            return;
+        }
+        
+        searchTimeout = setTimeout(() => {
+            fetch(`/api/search-teams?q=${encodeURIComponent(query)}`)
+                .then(response => response.json())
+                .then(data => {
+                    displaySuggestions(data.teams, suggestions, input);
+                })
+                .catch(error => {
+                    console.error('Arama hatası:', error);
+                });
+        }, 300);
+    });
+    
+    // Dışarı tıklayınca önerileri gizle
+    document.addEventListener('click', function(e) {
+        if (!input.contains(e.target) && !suggestions.contains(e.target)) {
+            suggestions.style.display = 'none';
+        }
+    });
+}
+
+function displaySuggestions(teams, suggestionsDiv, input) {
+    suggestionsDiv.innerHTML = '';
+    
+    if (teams.length === 0) {
+        suggestionsDiv.style.display = 'none';
+        return;
+    }
+    
+    teams.slice(0, 5).forEach(team => {
+        const item = document.createElement('div');
+        item.className = 'suggestion-item';
+        item.innerHTML = `
+            <span class="suggestion-team">${team.name}</span>
+            <span class="suggestion-league">${team.league}</span>
+        `;
+        
+        item.addEventListener('click', function() {
+            input.value = team.name;
+            suggestionsDiv.style.display = 'none';
+        });
+        
+        suggestionsDiv.appendChild(item);
+    });
+    
+    suggestionsDiv.style.display = 'block';
+}
+
+// Sayfa yüklendiğinde arama fonksiyonlarını başlat
+document.addEventListener('DOMContentLoaded', function() {
+    setupTeamSearch('team1', 'team1-suggestions');
+    setupTeamSearch('team2', 'team2-suggestions');
+});
+</script>
+{% endblock %}

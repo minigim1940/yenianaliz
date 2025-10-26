@@ -1,13 +1,9 @@
 # Railway Deployment Configuration
-# Bu dosya Railway'in projenizi nasıl deploy edeceğini belirtir
-
 [build]
-# Railway otomatik olarak requirements.txt'den bağımlılıkları kurar
+  builder = "nixpacks"
 
 [deploy]
-# Uygulamayı başlatma komutu
-startCommand = "streamlit run app.py --server.port=$PORT --server.address=0.0.0.0"
+  startCommand = "uvicorn simple_fastapi:app --host 0.0.0.0 --port $PORT"
 
-[env]
-# Environment variables Railway dashboard'dan ayarlanır
-# API_KEY = "your_api_key_here"
+[build.env]
+  NIXPACKS_PYTHON_VERSION = "3.10"

@@ -1,0 +1,278 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row">
+    <!-- Sol Panel - Kullanıcı Bilgileri -->
+    <div class="col-lg-3">
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <h5 class="card-title">
+                    <i class="fas fa-user-circle me-2 text-primary"></i>
+                    Hoş Geldin, {{ username }}!
+                </h5>
+                
+                <div class="row text-center mt-3">
+                    <div class="col-6">
+                        <div class="bg-primary text-white rounded p-2">
+                            <i class="fas fa-tachometer-alt d-block fs-4"></i>
+                            <small>API Hakkı</small>
+                            <div class="fw-bold">{{ user_info.remaining if user_info else 'Sınırsız' }}</div>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="bg-success text-white rounded p-2">
+                            <i class="fas fa-calendar-check d-block fs-4"></i>
+                            <small>Bugün</small>
+                            <div class="fw-bold">{{ user_info.daily_usage if user_info else '0' }}</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <hr>
+                
+                <div class="d-grid gap-2">
+                    <a href="/dashboard" class="btn btn-primary">
+                        <i class="fas fa-calendar me-1"></i> Maç Panosu
+                    </a>
+                    <a href="/analysis" class="btn btn-outline-primary">
+                        <i class="fas fa-search me-1"></i> Gelişmiş Analiz
+                    </a>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Quick Stats -->
+        <div class="card shadow-sm mt-3">
+            <div class="card-body">
+                <h6 class="card-title">
+                    <i class="fas fa-chart-line me-2 text-success"></i>
+                    Hızlı İstatistikler
+                </h6>
+                <small class="text-muted">
+                    <div>✅ 25,673 takım veritabanında</div>
+                    <div>📊 Son güncelleme: Dün</div>
+                    <div>🎯 Tahmin doğruluğu: %67+</div>
+                </small>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Ana İçerik -->
+    <div class="col-lg-9">
+        <!-- Günün Öne Çıkan Maçları -->
+        <div class="card shadow-sm">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0">
+                    <i class="fas fa-star me-2"></i>
+                    Günün Öne Çıkan Maçları
+                </h5>
+            </div>
+            <div class="card-body">
+                {% if fixtures %}
+                <div class="row">
+                    {% for fixture in fixtures[:6] %}
+                    <div class="col-md-6 col-lg-4 mb-3">
+                        <div class="card border">
+                            <div class="card-body p-3">
+                                <!-- Takım Logoları ve İsimler -->
+                                <div class="text-center mb-2">
+                                    <div class="row align-items-center">
+                                        <div class="col-4">
+                                            {% if fixture.teams.home.logo %}
+                                            <img src="{{ fixture.teams.home.logo }}" alt="{{ fixture.teams.home.name }}" 
+                                                 class="img-fluid rounded" style="max-height: 30px;">
+                                            {% endif %}
+                                            <div class="small mt-1">{{ fixture.teams.home.name[:12] }}{% if fixture.teams.home.name|length > 12 %}...{% endif %}</div>
+                                        </div>
+                                        <div class="col-4">
+                                            <div class="text-muted small">VS</div>
+                                            <div class="badge bg-info">{{ fixture.fixture.date[11:16] }}</div>
+                                        </div>
+                                        <div class="col-4">
+                                            {% if fixture.teams.away.logo %}
+                                            <img src="{{ fixture.teams.away.logo }}" alt="{{ fixture.teams.away.name }}" 
+                                                 class="img-fluid rounded" style="max-height: 30px;">
+                                            {% endif %}
+                                            <div class="small mt-1">{{ fixture.teams.away.name[:12] }}{% if fixture.teams.away.name|length > 12 %}...{% endif %}</div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- Lig Bilgisi -->
+                                <div class="text-center mb-2">
+                                    <span class="badge bg-secondary small">{{ fixture.league.name }}</span>
+                                </div>
+                                
+                                <!-- Analiz Butonu -->
+                                <div class="d-grid">
+                                    <button class="btn btn-primary btn-sm" 
+                                            onclick="analyzeMatch('{{ fixture.teams.home.name }}', '{{ fixture.teams.away.name }}')">
+                                        <i class="fas fa-chart-line me-1"></i>Analiz Et
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="text-center py-4">
+                    <i class="fas fa-calendar-times fs-1 text-muted"></i>
+                    <h5 class="mt-3 text-muted">Bugün için öne çıkan maç bulunamadı</h5>
+                    <p class="text-muted">Maç Panosu'ndan farklı tarihler seçebilirsiniz.</p>
+                    <a href="/dashboard" class="btn btn-primary">
+                        <i class="fas fa-calendar me-1"></i>Maç Panosu'na Git
+                    </a>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        
+        <!-- Hızlı Takım Arama -->
+        <div class="card shadow-sm mt-4">
+            <div class="card-header bg-success text-white">
+                <h5 class="mb-0">
+                    <i class="fas fa-search me-2"></i>
+                    Hızlı Takım Arama
+                </h5>
+            </div>
+            <div class="card-body">
+                <form id="teamSearchForm">
+                    <div class="row">
+                        <div class="col-md-10">
+                            <input type="text" class="form-control" id="teamName" 
+                                   placeholder="Takım adını girin (ör: Galatasaray, Real Madrid)">
+                        </div>
+                        <div class="col-md-2">
+                            <button type="submit" class="btn btn-success w-100">
+                                <i class="fas fa-search"></i> Ara
+                            </button>
+                        </div>
+                    </div>
+                </form>
+                
+                <div id="searchResults" class="mt-3"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Analiz Modal -->
+<div class="modal fade" id="analysisModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-chart-line me-2"></i>
+                    Maç Analizi
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div id="analysisContent">
+                    <div class="text-center">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Analiz yapılıyor...</span>
+                        </div>
+                        <p class="mt-2">Analiz yapılıyor, lütfen bekleyin...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Hızlı takım arama
+document.getElementById('teamSearchForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    const teamName = document.getElementById('teamName').value;
+    if (teamName.trim()) {
+        searchTeam(teamName);
+    }
+});
+
+function searchTeam(teamName) {
+    const resultsDiv = document.getElementById('searchResults');
+    resultsDiv.innerHTML = '<div class="alert alert-info"><i class="fas fa-spinner fa-spin me-2"></i>Aranıyor...</div>';
+    
+    // API çağrısı simülasyonu (gerçek implementasyonda AJAX kullanın)
+    setTimeout(() => {
+        resultsDiv.innerHTML = `
+            <div class="alert alert-success">
+                <h6><i class="fas fa-check-circle me-2"></i>Takım Bulundu!</h6>
+                <p><strong>${teamName}</strong> için yaklaşan maç aranıyor...</p>
+                <button class="btn btn-primary btn-sm" onclick="analyzeTeam('${teamName}')">
+                    <i class="fas fa-chart-line me-1"></i>Analiz Et
+                </button>
+            </div>
+        `;
+    }, 1000);
+}
+
+function analyzeMatch(homeTeam, awayTeam) {
+    const modal = new bootstrap.Modal(document.getElementById('analysisModal'));
+    modal.show();
+    
+    // AJAX ile analiz yap
+    fetch('/api/analyze', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+        body: `home_team=${encodeURIComponent(homeTeam)}&away_team=${encodeURIComponent(awayTeam)}`
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            document.getElementById('analysisContent').innerHTML = `
+                <div class="text-center mb-4">
+                    <h4>${data.home_team} <span class="text-muted">vs</span> ${data.away_team}</h4>
+                </div>
+                
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="card bg-primary text-white">
+                            <div class="card-body text-center">
+                                <h5>Tahmin</h5>
+                                <h3>${data.prediction}</h3>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="card bg-success text-white">
+                            <div class="card-body text-center">
+                                <h5>Güven Oranı</h5>
+                                <h3>${data.confidence}%</h3>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="mt-3">
+                    <a href="/analysis?home=${encodeURIComponent(data.home_team)}&away=${encodeURIComponent(data.away_team)}" 
+                       class="btn btn-primary w-100">
+                        <i class="fas fa-eye me-1"></i>Detaylı Analizi Görüntüle
+                    </a>
+                </div>
+            `;
+        } else {
+            document.getElementById('analysisContent').innerHTML = `
+                <div class="alert alert-danger">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    Analiz yapılırken hata oluştu.
+                </div>
+            `;
+        }
+    })
+    .catch(error => {
+        document.getElementById('analysisContent').innerHTML = `
+            <div class="alert alert-danger">
+                <i class="fas fa-exclamation-triangle me-2"></i>
+                Bağlantı hatası oluştu.
+            </div>
+        `;
+    });
+}
+</script>
+{% endblock %}

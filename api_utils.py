@@ -8,6 +8,20 @@ import json
 import os
 import yaml
 
+# Streamlit compatibility check
+try:
+    import streamlit as st
+    STREAMLIT_AVAILABLE = True
+except ImportError:
+    STREAMLIT_AVAILABLE = False
+    # No-op decorator for non-Streamlit environments
+    class st:
+        @staticmethod
+        def cache_data(ttl=None, show_spinner=None):
+            def decorator(func):
+                return func
+            return decorator
+
 # Streamlit'i optional yap (GitHub Actions için)
 try:
     import streamlit as st

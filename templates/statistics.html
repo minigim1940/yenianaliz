@@ -1,0 +1,197 @@
+{% extends "base.html" %}
+
+{% block title %}İstatistikler - Güvenilir Analiz{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header bg-info text-white">
+                    <h4 class="mb-0">
+                        <i class="fas fa-chart-bar me-2"></i>
+                        Sistem İstatistikleri
+                    </h4>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-3">
+                            <div class="card border-primary">
+                                <div class="card-body text-center">
+                                    <i class="fas fa-users fa-2x text-primary mb-2"></i>
+                                    <h5 class="card-title">Toplam Kullanıcı</h5>
+                                    <p class="card-text display-6">1,247</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card border-success">
+                                <div class="card-body text-center">
+                                    <i class="fas fa-search fa-2x text-success mb-2"></i>
+                                    <h5 class="card-title">Toplam Analiz</h5>
+                                    <p class="card-text display-6">15,632</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card border-warning">
+                                <div class="card-body text-center">
+                                    <i class="fas fa-percentage fa-2x text-warning mb-2"></i>
+                                    <h5 class="card-title">Doğruluk Oranı</h5>
+                                    <p class="card-text display-6">%87.3</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card border-danger">
+                                <div class="card-body text-center">
+                                    <i class="fas fa-futbol fa-2x text-danger mb-2"></i>
+                                    <h5 class="card-title">Takım Sayısı</h5>
+                                    <p class="card-text display-6">25,673</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Grafik Alanı -->
+    <div class="row mt-4">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-chart-line me-2"></i>
+                        Aylık Analiz Trendi
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="monthlyChart" height="100"></canvas>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-trophy me-2"></i>
+                        Popüler Ligler
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="list-group list-group-flush">
+                        <div class="list-group-item d-flex justify-content-between">
+                            <span><i class="fas fa-star text-warning me-2"></i>Premier League</span>
+                            <badge class="badge bg-primary">3,847</badge>
+                        </div>
+                        <div class="list-group-item d-flex justify-content-between">
+                            <span><i class="fas fa-star text-warning me-2"></i>La Liga</span>
+                            <badge class="badge bg-primary">2,956</badge>
+                        </div>
+                        <div class="list-group-item d-flex justify-content-between">
+                            <span><i class="fas fa-star text-warning me-2"></i>Süper Lig</span>
+                            <badge class="badge bg-primary">2,423</badge>
+                        </div>
+                        <div class="list-group-item d-flex justify-content-between">
+                            <span><i class="fas fa-star text-warning me-2"></i>Bundesliga</span>
+                            <badge class="badge bg-primary">1,874</badge>
+                        </div>
+                        <div class="list-group-item d-flex justify-content-between">
+                            <span><i class="fas fa-star text-warning me-2"></i>Serie A</span>
+                            <badge class="badge bg-primary">1,652</badge>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Hızlı İstatistikler -->
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-tachometer-alt me-2"></i>
+                        Hızlı İstatistikler
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="progress mb-3">
+                                <div class="progress-bar bg-success" role="progressbar" style="width: 87%" aria-valuenow="87" aria-valuemin="0" aria-valuemax="100">
+                                    Doğru Tahminler %87
+                                </div>
+                            </div>
+                            <div class="progress mb-3">
+                                <div class="progress-bar bg-info" role="progressbar" style="width: 65%" aria-valuenow="65" aria-valuemin="0" aria-valuemax="100">
+                                    Günlük Aktif Kullanıcı %65
+                                </div>
+                            </div>
+                            <div class="progress mb-3">
+                                <div class="progress-bar bg-warning" role="progressbar" style="width: 45%" aria-valuenow="45" aria-valuemin="0" aria-valuemax="100">
+                                    Premium Üyelik %45
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <ul class="list-unstyled">
+                                <li><i class="fas fa-check text-success me-2"></i><strong>Son 24 saat:</strong> 1,247 analiz</li>
+                                <li><i class="fas fa-clock text-primary me-2"></i><strong>Ortalama analiz süresi:</strong> 2.3 saniye</li>
+                                <li><i class="fas fa-globe text-info me-2"></i><strong>Desteklenen lig sayısı:</strong> 47</li>
+                                <li><i class="fas fa-database text-secondary me-2"></i><strong>Toplam takım verisi:</strong> 25,673</li>
+                                <li><i class="fas fa-sync text-warning me-2"></i><strong>Son veri güncellemesi:</strong> 2 saat önce</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+// Aylık trend grafiği
+const ctx = document.getElementById('monthlyChart').getContext('2d');
+const monthlyChart = new Chart(ctx, {
+    type: 'line',
+    data: {
+        labels: ['Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran', 'Temmuz', 'Ağustos', 'Eylül', 'Ekim'],
+        datasets: [{
+            label: 'Aylık Analiz Sayısı',
+            data: [1200, 1350, 1100, 1450, 1600, 1750, 1400, 1550, 1800, 1950],
+            borderColor: 'rgb(75, 192, 192)',
+            backgroundColor: 'rgba(75, 192, 192, 0.1)',
+            tension: 0.1,
+            fill: true
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: {
+            y: {
+                beginAtZero: true,
+                grid: {
+                    color: 'rgba(0,0,0,0.1)'
+                }
+            },
+            x: {
+                grid: {
+                    color: 'rgba(0,0,0,0.1)'
+                }
+            }
+        },
+        plugins: {
+            legend: {
+                display: false
+            }
+        }
+    }
+});
+</script>
+{% endblock %}
