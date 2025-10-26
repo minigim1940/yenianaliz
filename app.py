@@ -2793,7 +2793,9 @@ def build_home_view(model_params):
                 st.error(f"❌ Sistem hatası: {str(e)}")
                 # Fallback to old system
                 with st.spinner(f"'{team_query}' takımı aranıyor..."):
-                    team_data = api_utils.get_team_id(API_KEY, BASE_URL, team_query)
+                    # Mevcut sezonu kullan
+                    current_season = 2024
+                    team_data = api_utils.get_team_id(API_KEY, BASE_URL, team_query, season=current_season)
                     if team_data:
                         st.success(f"✅ Takım bulundu: **{team_data['name']}**")
                     
@@ -3093,8 +3095,11 @@ def build_manual_view(model_params: Dict):
         if not t1_in or not t2_in:
             st.warning("Lütfen iki takımı da girin.")
         else:
-            team_a = api_utils.get_team_id(API_KEY, BASE_URL, t1_in)
-            team_b = api_utils.get_team_id(API_KEY, BASE_URL, t2_in)
+            # Mevcut sezonu belirle
+            current_season = 2024  # 2024-2025 sezonunu kullan
+            
+            team_a = api_utils.get_team_id(API_KEY, BASE_URL, t1_in, season=current_season)
+            team_b = api_utils.get_team_id(API_KEY, BASE_URL, t2_in, season=current_season)
             if team_a and team_b:
                 with st.spinner('Maç aranıyor...'):
                     info = api_utils.get_team_league_info(API_KEY, BASE_URL, team_a['id'])

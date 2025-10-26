@@ -960,12 +960,12 @@ def get_team_id(api_key: str, base_url: str, team_input: str, season: Optional[i
             result = api.search_teams(team_input, season=season)
         
         # Handle API response
-        if result.status == APIStatus.ERROR:
+        if result.status.value == "error":
             if STREAMLIT_AVAILABLE:
                 st.sidebar.error(f"❌ API Hatası: {result.error}")
             return None
         
-        if result.status == APIStatus.RATE_LIMIT:
+        if result.status.value == "rate_limit":
             if STREAMLIT_AVAILABLE:
                 st.sidebar.error("⚠️ API rate limit aşıldı. Lütfen bekleyip tekrar deneyin.")
             return None
