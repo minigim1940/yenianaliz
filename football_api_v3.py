@@ -181,6 +181,10 @@ class APIFootballV3:
     # FIXTURES ENDPOINTS  
     # ========================
     
+    def get_fixture_by_id(self, fixture_id: int) -> APIResponse:
+        """Get specific fixture by ID"""
+        return self._make_request("fixtures", {"id": fixture_id})
+    
     def get_fixtures_by_date(self, date_str: str, 
                             league_id: Optional[int] = None,
                             team_id: Optional[int] = None) -> APIResponse:

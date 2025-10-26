@@ -2105,6 +2105,85 @@ def analyze_and_display(team_a_data: Dict, team_b_data: Dict, fixture_id: int, m
     Bu fonksiyon KULLANICI API HAKKI TÜKETİR (her çağrıda 1 kredi).
     Cache yok - her çağrıda yeni analiz yapılır ve API hakkı tüketilir.
     """
+    
+    # Canlı maç kontrolü ve otomatik güncelleme
+    from football_api_v3 import APIFootballV3
+    
+    try:
+        api_v3 = APIFootballV3(API_KEY)
+        fixture_result = api_v3.get_fixture_by_id(fixture_id)
+        
+        if fixture_result.status.value == "success" and fixture_result.data:
+            fixture_info = fixture_result.data[0]
+            fixture_status = fixture_info.get('fixture', {}).get('status', {})
+            status_short = fixture_status.get('short', 'NS')
+            
+            # Canlı maç durumu kontrolü
+            is_live = status_short in ['1H', '2H', 'ET', 'HT', 'LIVE']
+            
+            if is_live:
+                # Canlı maç için otomatik güncelleme kontrolleri
+                col1, col2, col3, col4 = st.columns([2, 1, 1, 1])
+                
+                with col1:
+                    auto_refresh = st.checkbox("🔴 Canlı Güncelleme", key=f"live_refresh_{fixture_id}", value=True)
+                
+                with col2:
+                    refresh_interval = st.selectbox(
+                        "Aralık", [10, 15, 30, 60], 
+                        index=0, format_func=lambda x: f"{x}sn",
+                        key=f"refresh_interval_{fixture_id}"
+                    )
+                
+                with col3:
+                    if st.button("🔄 Güncelle", key=f"manual_refresh_{fixture_id}"):
+                        st.rerun()
+                
+                with col4:
+                    from datetime import datetime
+                    current_time = datetime.now().strftime("%H:%M:%S")
+                    st.caption(f"⏰ {current_time}")
+                
+                # Canlı skor gösterimi
+                goals = fixture_info.get('goals', {})
+                home_score = goals.get('home', 0) or 0
+                away_score = goals.get('away', 0) or 0
+                minute = fixture_status.get('elapsed', 0)
+                
+                st.markdown(f"""
+                <div style="background: linear-gradient(135deg, #ff4444 0%, #cc0000 100%); 
+                           padding: 15px; border-radius: 10px; margin: 10px 0; text-align: center;">
+                    <h2 style="color: white; margin: 0;">🔴 CANLI MAÇ</h2>
+                    <h1 style="color: white; margin: 10px 0; font-size: 2.5em;">
+                        {team_a_data['name']} {home_score} - {away_score} {team_b_data['name']}
+                    </h1>
+                    <p style="color: white; margin: 0; font-size: 1.2em;">
+                        ⏱️ {minute}. dakika | {fixture_status.get('long', 'Canlı')}
+                    </p>
+                </div>
+                """, unsafe_allow_html=True)
+                
+                # Otomatik yenileme
+                if auto_refresh:
+                    import time
+                    progress_placeholder = st.empty()
+                    
+                    for i in range(refresh_interval):
+                        remaining = refresh_interval - i
+                        progress = i / refresh_interval
+                        
+                        progress_placeholder.progress(
+                            progress, 
+                            text=f"🔄 {remaining} saniye sonra canlı veriler güncellenecek..."
+                        )
+                        time.sleep(1)
+                    
+                    progress_placeholder.empty()
+                    st.rerun()
+    
+    except Exception as e:
+        st.warning(f"Canlı maç durumu kontrol edilemedi: {e}")
+    
     # KULLANICI API HAKKI KONTROLÜ - ÜST SEVİYEDE
     can_request, error_msg = api_utils.check_api_limit()
     if not can_request:
@@ -3104,7 +3183,30 @@ def display_live_matches():
         if fixtures_result.status.value == "success" and fixtures_result.data:
             live_matches = fixtures_result.data
             
-            st.success(f"🔴 **{len(live_matches)} canlı maç** bulundu!")
+            # İşaretli maçları takip et
+            if 'tracked_matches' not in st.session_state:
+                st.session_state.tracked_matches = set()
+            
+            # Sadece takip edilenler modu kontrolü
+            show_only_tracked = getattr(st.session_state, 'show_only_tracked', False)
+            
+            if show_only_tracked and st.session_state.tracked_matches:
+                # Sadece takip edilen maçları filtrele
+                live_matches = [match for match in live_matches 
+                              if match.get('fixture', {}).get('id') in st.session_state.tracked_matches]
+                
+                if live_matches:
+                    st.success(f"📌 **{len(live_matches)} takip edilen canlı maç** gösteriliyor!")
+                else:
+                    st.info("📌 Takip ettiğiniz maçlardan hiçbiri şu anda canlı değil")
+                    st.session_state.show_only_tracked = False
+                
+                # Geri dön butonu
+                if st.button("↩️ Tüm Canlı Maçları Göster"):
+                    st.session_state.show_only_tracked = False
+                    st.rerun()
+            else:
+                st.success(f"🔴 **{len(live_matches)} canlı maç** bulundu!")
             
             # Canlı maçları liglere göre grupla
             leagues = {}
@@ -3118,15 +3220,60 @@ def display_live_matches():
             for league_name, matches in leagues.items():
                 with st.expander(f"🏆 {league_name} ({len(matches)} maç)", expanded=True):
                     for match in matches:
-                        display_live_match_card(match)
+                        fixture_id = match.get('fixture', {}).get('id')
+                        home_team = match.get('teams', {}).get('home', {}).get('name', '')
+                        away_team = match.get('teams', {}).get('away', {}).get('name', '')
+                        
+                        # Takip etme checkbox'ı
+                        col1, col2 = st.columns([1, 10])
+                        
+                        with col1:
+                            is_tracked = st.checkbox(
+                                "📌", 
+                                value=fixture_id in st.session_state.tracked_matches,
+                                key=f"track_{fixture_id}",
+                                help="Bu maçı takip et"
+                            )
+                            
+                            # Takip durumunu güncelle
+                            if is_tracked:
+                                st.session_state.tracked_matches.add(fixture_id)
+                            else:
+                                st.session_state.tracked_matches.discard(fixture_id)
+                        
+                        with col2:
+                            # Sadece takip edilen maçlar için gelişmiş gösterim
+                            if fixture_id in st.session_state.tracked_matches:
+                                display_tracked_live_match_card(match)
+                            else:
+                                display_live_match_card(match)
                         
                         # Maç detayları butonu
-                        fixture_id = match.get('fixture', {}).get('id')
                         if fixture_id:
-                            if st.button(f"📊 {match.get('teams', {}).get('home', {}).get('name', '')} vs {match.get('teams', {}).get('away', {}).get('name', '')} Detayları", key=f"live_detail_{fixture_id}"):
+                            if st.button(f"📊 {home_team} vs {away_team} Detayları", key=f"live_detail_{fixture_id}"):
                                 st.session_state.selected_fixture = fixture_id
                                 st.session_state.view = 'manual'
                                 st.rerun()
+            
+            # Takip edilen maçlar özeti
+            if st.session_state.tracked_matches:
+                st.markdown("---")
+                st.markdown("### 📌 Takip Edilen Maçlar Özeti")
+                
+                tracked_count = len(st.session_state.tracked_matches)
+                st.success(f"🎯 **{tracked_count} maç** takip ediliyor")
+                
+                # Takip edilen maçları temizleme
+                col1, col2 = st.columns(2)
+                with col1:
+                    if st.button("🗑️ Tüm Takipleri Temizle", type="secondary"):
+                        st.session_state.tracked_matches.clear()
+                        st.rerun()
+                
+                with col2:
+                    if st.button("📱 Sadece Takip Edilenler", type="primary"):
+                        st.session_state.show_only_tracked = True
+                        st.rerun()
                 
         else:
             st.info("📺 Şu anda canlı maç bulunmuyor")
@@ -3296,6 +3443,92 @@ def display_live_match_card(match):
             
     except Exception as e:
         st.error(f"Maç kartı gösterilirken hata: {e}")
+
+def display_tracked_live_match_card(match):
+    """Takip edilen canlı maç için özel kart"""
+    try:
+        # Maç bilgileri
+        fixture = match.get('fixture', {})
+        teams = match.get('teams', {})
+        goals = match.get('goals', {})
+        league = match.get('league', {})
+        
+        home_team = teams.get('home', {}).get('name', 'Bilinmiyor')
+        away_team = teams.get('away', {}).get('name', 'Bilinmiyor')
+        home_score = goals.get('home', 0) or 0
+        away_score = goals.get('away', 0) or 0
+        minute = fixture.get('status', {}).get('elapsed', 0)
+        league_name = league.get('name', 'Bilinmiyor')
+        
+        # Logo URL'leri
+        home_logo = teams.get('home', {}).get('logo', '')
+        away_logo = teams.get('away', {}).get('logo', '')
+        
+        # Maç durumu
+        status_short = fixture.get('status', {}).get('short', 'NS')
+        status_long = fixture.get('status', {}).get('long', 'Başlamamış')
+        
+        # Özel takip kartı (vurgulanmış)
+        st.markdown(f"""
+        <div style="
+            border: 3px solid #ff6b6b; 
+            background: linear-gradient(135deg, #ff6b6b20 0%, #feca5720 100%);
+            padding: 20px; 
+            margin: 15px 0; 
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(255, 107, 107, 0.3);
+            animation: pulse 2s infinite;
+        ">
+            <div style="display: flex; align-items: center; justify-content: space-between;">
+                <div style="display: flex; align-items: center; gap: 15px;">
+                    <div style="background: #ff6b6b; color: white; padding: 5px 10px; border-radius: 20px; font-size: 0.8em; font-weight: bold;">
+                        📌 TAKİP EDİLİYOR
+                    </div>
+                </div>
+                <div style="text-align: right; color: #ff6b6b; font-weight: bold;">
+                    🔴 CANLI
+                </div>
+            </div>
+            
+            <div style="margin: 15px 0; text-align: center;">
+                <h2 style="margin: 5px 0; color: #333;">
+                    {home_team} <span style="color: #ff6b6b; font-size: 1.5em;">{home_score} - {away_score}</span> {away_team}
+                </h2>
+                <p style="margin: 5px 0; color: #666;">🏆 {league_name}</p>
+                <p style="margin: 0; color: #ff6b6b; font-weight: bold; font-size: 1.1em;">
+                    ⏱️ {minute}. dakika | {status_long}
+                </p>
+            </div>
+        </div>
+        
+        <style>
+        @keyframes pulse {{
+            0% {{ box-shadow: 0 4px 20px rgba(255, 107, 107, 0.3); }}
+            50% {{ box-shadow: 0 4px 30px rgba(255, 107, 107, 0.6); }}
+            100% {{ box-shadow: 0 4px 20px rgba(255, 107, 107, 0.3); }}
+        }}
+        </style>
+        """, unsafe_allow_html=True)
+        
+        # Ek canlı bilgiler (sadece takip edilenler için)
+        if status_short in ['1H', '2H', 'ET', 'LIVE']:
+            # Son olayları göster (eğer mümkünse)
+            col1, col2, col3 = st.columns(3)
+            
+            with col1:
+                st.metric("🏠 Ev Sahibi Goller", home_score, delta=None)
+                
+            with col2:
+                st.metric("⚽ Toplam Gol", home_score + away_score)
+                
+            with col3:
+                st.metric("✈️ Deplasman Goller", away_score, delta=None)
+        
+        # Ayırıcı
+        st.markdown("---")
+        
+    except Exception as e:
+        st.error(f"Takip edilen maç kartı gösterilirken hata: {e}")
 
 def display_fallback_live_matches():
     """Alternatif canlı maç kaynağı"""
