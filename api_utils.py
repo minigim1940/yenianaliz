@@ -994,6 +994,21 @@ def get_team_id(api_key: str, base_url: str, team_input: str, season: Optional[i
     Main team search function for homepage - simplified and working
     """
     try:
+        # Türkçe karakter normalizasyonu
+        def normalize_turkish(text: str) -> str:
+            """Türkçe karakterleri normalize et"""
+            replacements = {
+                'ğ': 'g', 'Ğ': 'G',
+                'ü': 'u', 'Ü': 'U',
+                'ş': 's', 'Ş': 'S',
+                'ı': 'i', 'İ': 'I',
+                'ö': 'o', 'Ö': 'O',
+                'ç': 'c', 'Ç': 'C'
+            }
+            for tr_char, en_char in replacements.items():
+                text = text.replace(tr_char, en_char)
+            return text
+        
         # Strategy 1: Direct mapping for popular teams (fastest)
         team_mappings = {
             # Priority/Manual mappings
@@ -2324,8 +2339,9 @@ def get_team_id(api_key: str, base_url: str, team_input: str, season: Optional[i
         }
         
         team_lower = team_input.strip().lower()
+        team_normalized = normalize_turkish(team_lower)
         
-        # Quick lookup first
+        # Quick lookup first - önce orijinal, sonra normalize
         if team_lower in team_mappings:
             team_id = team_mappings[team_lower]
             response, error = make_api_request(api_key, base_url, "teams", {'id': team_id}, skip_limit=True)
@@ -2335,9 +2351,26 @@ def get_team_id(api_key: str, base_url: str, team_input: str, season: Optional[i
                 team_info = team_raw['team'] if 'team' in team_raw else team_raw
                 return format_team_data(team_info)
         
+        # Orijinalde yoksa normalize edilmiş ismi dene
+        if team_normalized != team_lower and team_normalized in team_mappings:
+            team_id = team_mappings[team_normalized]
+            print(f"✅ Normalized mapping found: {team_input} -> {team_normalized} -> ID {team_id}")
+            response, error = make_api_request(api_key, base_url, "teams", {'id': team_id}, skip_limit=True)
+            if response and len(response) > 0:
+                team_raw = response[0]
+                team_info = team_raw['team'] if 'team' in team_raw else team_raw
+                return format_team_data(team_info)
+        
         # Strategy 2: API search by name (with enhanced debugging)
         print(f"🔍 API arama başlatılıyor: '{team_input}'")
+        
+        # Önce orijinal isimle dene
         response, error = make_api_request(api_key, base_url, "teams", {'search': team_input}, skip_limit=True)
+        
+        # Başarısızsa normalize edilmiş isimle dene
+        if (not response or len(response) == 0) and team_normalized != team_lower:
+            print(f"⚠️ Orijinal isimle bulunamadı, normalize ediliyor: {team_normalized}")
+            response, error = make_api_request(api_key, base_url, "teams", {'search': team_normalized}, skip_limit=True)
         
         print(f"📡 API Yanıtı - Error: {error}")
         print(f"📡 API Yanıtı - Response exists: {bool(response)}")
@@ -2357,8 +2390,17 @@ def get_team_id(api_key: str, base_url: str, team_input: str, season: Optional[i
         
         if error:
             print(f"❌ API Error: {error}")
-            # Try fallback mapping even on other errors
-            if team_lower in team_mappings:
+            # Try fallback mapping even on other errors - önce normalize, sonra orijinal
+            if team_normalized in team_mappings:
+                team_id = team_mappings[team_normalized]
+                print(f"🔄 Using normalized mapping fallback for {team_input} -> ID {team_id}")
+                return {
+                    'id': team_id,
+                    'name': team_input.title(),
+                    'country': 'Unknown',
+                    'logo': None
+                }
+            elif team_lower in team_mappings:
                 team_id = team_mappings[team_lower]
                 print(f"🔄 Using direct mapping fallback for {team_input} -> ID {team_id}")
                 return {
@@ -2379,8 +2421,17 @@ def get_team_id(api_key: str, base_url: str, team_input: str, season: Optional[i
         
         if not teams or len(teams) == 0:
             print(f"❌ No teams found for {team_input}")
-            # Fallback to direct mapping if available
-            if team_lower in team_mappings:
+            # Fallback to direct mapping if available - önce normalize, sonra orijinal
+            if team_normalized in team_mappings:
+                team_id = team_mappings[team_normalized]
+                print(f"🔄 Using normalized mapping fallback -> ID {team_id}")
+                return {
+                    'id': team_id,
+                    'name': team_input.title(),
+                    'country': 'Unknown',  
+                    'logo': None
+                }
+            elif team_lower in team_mappings:
                 team_id = team_mappings[team_lower]
                 print(f"🔄 Using direct mapping fallback -> ID {team_id}")
                 return {

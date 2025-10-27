@@ -93,37 +93,124 @@ import os
 from enhanced_analysis import display_enhanced_match_analysis
 from enhanced_displays import display_comprehensive_team_analysis
 
+# Yeni modüller
+try:
+    from advanced_analysis_display import display_advanced_analysis_tab, display_xg_analysis, display_momentum_analysis
+    from ai_chat_assistant import FootballChatAssistant, create_chat_widget
+    from advanced_pages import display_xg_analysis_page, display_ai_chat_page
+    from lstm_page import display_lstm_page
+    from simulation_page import display_simulation_page
+    from betting_page import render_betting_page
+    from sentiment_page import display_sentiment_page
+    
+    # Gelişmiş analiz core modülleri - Ana dashboard'da kullanılacak
+    from lstm_predictor import predict_match_with_lstm
+    from poisson_simulator import PoissonMatchSimulator, MonteCarloSimulator
+    from value_bet_detector import ValueBetDetector
+    from xg_calculator import xGCalculator
+    
+    ADVANCED_FEATURES_AVAILABLE = True
+except ImportError as e:
+    print(f"Gelişmiş özellikler yüklenemedi: {e}")
+    ADVANCED_FEATURES_AVAILABLE = False
 
-def get_logo_base64():
-    """Logo dosyasını base64 formatına çevirir"""
-    logo_path = os.path.join(os.path.dirname(__file__), 'assets', 'logo.svg')
-    try:
-        with open(logo_path, 'r', encoding='utf-8') as f:
-            svg_content = f.read()
-        return base64.b64encode(svg_content.encode()).decode()
-    except Exception as e:
-        print(f"Logo yüklenemedi: {e}")
-        return None
+
+def get_logo_svg():
+    """Modern GÜVENLİ ANALİZ logosu - SVG format"""
+    return """
+    <svg width="400" height="120" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+            <linearGradient id="bgGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" style="stop-color:#667eea;stop-opacity:1" />
+                <stop offset="100%" style="stop-color:#764ba2;stop-opacity:1" />
+            </linearGradient>
+            <linearGradient id="shieldGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+                <stop offset="0%" style="stop-color:#06d6a0;stop-opacity:1" />
+                <stop offset="100%" style="stop-color:#118ab2;stop-opacity:1" />
+            </linearGradient>
+            <filter id="glow">
+                <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
+                <feMerge>
+                    <feMergeNode in="coloredBlur"/>
+                    <feMergeNode in="SourceGraphic"/>
+                </feMerge>
+            </filter>
+        </defs>
+        
+        <!-- Arka plan -->
+        <rect width="400" height="120" rx="15" fill="url(#bgGradient)" opacity="0.95"/>
+        
+        <!-- Kalkan ikonu (Güvenlik sembolü) -->
+        <g transform="translate(30, 25)">
+            <path d="M 30 5 L 5 15 L 5 35 Q 5 55 30 65 Q 55 55 55 35 L 55 15 Z" 
+                  fill="url(#shieldGradient)" 
+                  stroke="#ffffff" 
+                  stroke-width="2.5"
+                  filter="url(#glow)"/>
+            <path d="M 20 35 L 27 42 L 42 25" 
+                  fill="none" 
+                  stroke="#ffffff" 
+                  stroke-width="4" 
+                  stroke-linecap="round" 
+                  stroke-linejoin="round"/>
+        </g>
+        
+        <!-- GÜVENLİ ANALİZ metni -->
+        <text x="105" y="50" 
+              font-family="Arial, sans-serif" 
+              font-size="28" 
+              font-weight="bold" 
+              fill="#ffffff" 
+              filter="url(#glow)">
+            GÜVENLİ
+        </text>
+        <text x="105" y="80" 
+              font-family="Arial, sans-serif" 
+              font-size="28" 
+              font-weight="bold" 
+              fill="#ffd93d" 
+              filter="url(#glow)">
+            ANALİZ
+        </text>
+        
+        <!-- Alt çizgi (dekoratif) -->
+        <line x1="105" y1="88" x2="340" y2="88" 
+              stroke="#06d6a0" 
+              stroke-width="3" 
+              stroke-linecap="round"
+              opacity="0.8"/>
+        
+        <!-- Futbol ikonu (sağ üst) -->
+        <g transform="translate(350, 20)">
+            <circle cx="20" cy="20" r="18" fill="none" stroke="#ffffff" stroke-width="2.5"/>
+            <path d="M 20 2 L 15 15 L 2 15 L 12 23 L 8 36 L 20 28 L 32 36 L 28 23 L 38 15 L 25 15 Z" 
+                  fill="#ffffff" 
+                  transform="scale(0.35) translate(10, 10)"/>
+        </g>
+    </svg>
+    """
 
 
 def display_logo(sidebar=False, size="medium"):
     """Logoyu gösterir
     Args:
         sidebar: Sidebar'da mı gösterilecek
-        size: Logo boyutu - small (100px), medium (140px), large (200px)
+        size: Logo boyutu - small (300px), medium (400px), large (500px)
     """
-    logo_base64 = get_logo_base64()
-    if not logo_base64:
-        return
+    sizes = {"small": 300, "medium": 400, "large": 500}
+    width = sizes.get(size, 400)
     
-    sizes = {"small": 100, "medium": 140, "large": 200}
-    width = sizes.get(size, 140)
+    svg_content = get_logo_svg()
+    svg_base64 = base64.b64encode(svg_content.encode()).decode()
     
     logo_html = f"""
-    <div style='text-align: center; margin: 30px 0; padding: 20px;'>
-        <img src='data:image/svg+xml;base64,{logo_base64}' width='{width}' 
-             style='border-radius: 20px; box-shadow: 0 8px 24px rgba(102, 126, 234, 0.4); 
-                    border: 4px solid rgba(102, 126, 234, 0.2); transition: transform 0.3s ease;'>
+    <div style='text-align: center; margin: 20px 0; padding: 15px;'>
+        <img src='data:image/svg+xml;base64,{svg_base64}' width='{width}' 
+             style='max-width: 100%; height: auto; border-radius: 15px; 
+                    box-shadow: 0 10px 30px rgba(102, 126, 234, 0.5); 
+                    transition: transform 0.3s ease;'
+             onmouseover="this.style.transform='scale(1.05)'"
+             onmouseout="this.style.transform='scale(1)'">
     </div>
     """
     
@@ -699,118 +786,266 @@ def display_stats_tab(stats: Dict, team_names: Dict, team_ids: Dict, params: Opt
             st.dataframe(pd.Series(away_stats_b), use_container_width=True)
 
 def display_injuries_tab(fixture_id: int, team_names: Dict, team_ids: Dict, league_info: Dict):
-    st.subheader("❗ Maç Öncesi Önemli Eksikler")
+    st.subheader("❗ Maç Öncesi Eksikler & Sakatlıklar")
     
     try:
         # API v3 kullanarak sakatlık verilerini al
         from football_api_v3 import APIFootballV3
         api = APIFootballV3(API_KEY)
         
-        with st.spinner("Sakatlık verileri alınıyor..."):
-            # Her iki takım için ayrı ayrı sakatlık verisi al
-            team_a_injuries = api.get_sidelined(team_id=team_ids['a'])
-            team_b_injuries = api.get_sidelined(team_id=team_ids['b'])
+        with st.spinner("🔄 Sakatlık ve cezalı oyuncu verileri alınıyor..."):
+            # Önce fixture bilgisini alalım
+            from football_api_v3 import APIFootballV3
+            api_v3 = APIFootballV3(API_KEY)
+            fixture_details = api_v3.get_fixture_by_id(fixture_id)
+            fixture_date = None
+            
+            if fixture_details.status.value == "success" and fixture_details.data:
+                fixture_info = fixture_details.data[0].get('fixture', {})
+                fixture_date_str = fixture_info.get('date', '')
+                if fixture_date_str:
+                    try:
+                        from datetime import datetime
+                        fixture_date = datetime.fromisoformat(fixture_date_str.replace('Z', '+00:00'))
+                    except:
+                        pass
+            
+            # Fixture bazlı injuries
+            fixture_injuries = api.get_fixture_injuries(fixture_id)
+            
+            # Takım bazlı injuries (sadece fixture'a yakın olanlar için)
+            season = league_info.get('season', 2024)
+            league_id = league_info.get('id')
+            team_a_injuries = api.get_team_injuries(team_ids['a'], league_id=league_id, season=season)
+            team_b_injuries = api.get_team_injuries(team_ids['b'], league_id=league_id, season=season)
+            
+            # Sidelined endpoint
+            team_a_sidelined = api.get_sidelined(team_id=team_ids['a'])
+            team_b_sidelined = api.get_sidelined(team_id=team_ids['b'])
+        
+        # Debug: API yanıtlarını göster
+        with st.expander("🔍 Debug: API Yanıtları", expanded=False):
+            st.write("### Fixture Injuries")
+            st.write(f"**Status:** {fixture_injuries.status.value}")
+            if fixture_injuries.data:
+                st.write(f"**Toplam kayıt:** {len(fixture_injuries.data)}")
+                st.json(fixture_injuries.data[:2] if len(fixture_injuries.data) > 2 else fixture_injuries.data)
+            else:
+                st.warning("Fixture injuries: Veri yok")
+            
+            st.write(f"### {team_names['a']} Injuries (ID: {team_ids['a']})")
+            st.write(f"**Status:** {team_a_injuries.status.value}")
+            if team_a_injuries.data:
+                st.write(f"**Toplam kayıt:** {len(team_a_injuries.data)}")
+                st.json(team_a_injuries.data[:2] if len(team_a_injuries.data) > 2 else team_a_injuries.data)
+            else:
+                st.warning("Veri yok")
+            
+            st.write(f"### {team_names['b']} Injuries (ID: {team_ids['b']})")
+            st.write(f"**Status:** {team_b_injuries.status.value}")
+            if team_b_injuries.data:
+                st.write(f"**Toplam kayıt:** {len(team_b_injuries.data)}")
+                st.json(team_b_injuries.data[:2] if len(team_b_injuries.data) > 2 else team_b_injuries.data)
+            else:
+                st.warning("Veri yok")
+            
+            st.write("### Sidelined Data")
+            st.write(f"**{team_names['a']} Sidelined:** {len(team_a_sidelined.data) if team_a_sidelined.data else 0}")
+            st.write(f"**{team_names['b']} Sidelined:** {len(team_b_sidelined.data) if team_b_sidelined.data else 0}")
+        
+        def process_injuries(injuries_response, sidelined_response, team_name, fixture_date):
+            """Sakatlıkları kategorize et - SADECE FIXTURE'A YAKIN OLANLAR"""
+            from datetime import datetime, timedelta
+            
+            injuries = []
+            suspensions = []
+            missing = []
+            seen_players = set()
+            today = datetime.now()
+            
+            # Fixture tarihi yoksa bugünü kullan
+            target_date = fixture_date if fixture_date else today
+            
+            # Injuries endpoint'inden - SADECE SON 15 GÜN
+            if injuries_response.status.value == "success" and injuries_response.data:
+                for item in injuries_response.data:
+                    player_info = item.get('player', {})
+                    player_id = player_info.get('id')
+                    
+                    if player_id and player_id in seen_players:
+                        continue
+                    
+                    # Fixture tarihi kontrolü - fixture'dan max 15 gün önce
+                    fixture_date_str = item.get('fixture', {}).get('date', '')
+                    is_relevant = False
+                    
+                    if fixture_date_str:
+                        try:
+                            injury_date = datetime.fromisoformat(fixture_date_str.replace('Z', '+00:00'))
+                            days_diff = abs((target_date - injury_date).days)
+                            # Fixture'a 15 gün yakınsa göster
+                            is_relevant = days_diff <= 15
+                        except:
+                            is_relevant = False
+                    
+                    if not is_relevant:
+                        continue
+                    
+                    if player_id:
+                        seen_players.add(player_id)
+                    
+                    reason = item.get('reason', 'Sakatlık')
+                    
+                    standardized = {
+                        'player': player_info,
+                        'type': 'injury',
+                        'reason': reason,
+                        'start': fixture_date_str,
+                        'end': 'Belirsiz'
+                    }
+                    
+                    injuries.append(standardized)
+            
+            # Sidelined - AKTİF cezalılar
+            if sidelined_response.status.value == "success" and sidelined_response.data:
+                for item in sidelined_response.data:
+                    player_info = item.get('player', {})
+                    player_id = player_info.get('id')
+                    
+                    if player_id and player_id in seen_players:
+                        continue
+                    
+                    item_type = item.get('type', '').lower()
+                    
+                    if 'suspension' in item_type or 'suspended' in item_type or 'ban' in item_type:
+                        end_date_str = item.get('end')
+                        is_active = True
+                        
+                        if end_date_str and end_date_str != 'null':
+                            try:
+                                end_date = datetime.strptime(end_date_str, '%Y-%m-%d')
+                                is_active = end_date >= today
+                            except:
+                                is_active = True
+                        
+                        if is_active:
+                            if player_id:
+                                seen_players.add(player_id)
+                            suspensions.append(item)
+            
+            return injuries, suspensions, missing
+        
+        # Her iki takım için verileri işle - fixture_date parametresi ekle
+        team_a_inj, team_a_sus, team_a_miss = process_injuries(team_a_injuries, team_a_sidelined, team_names['a'], fixture_date)
+        team_b_inj, team_b_sus, team_b_miss = process_injuries(team_b_injuries, team_b_sidelined, team_names['b'], fixture_date)
         
         # Kolonlar oluştur
         c1, c2 = st.columns(2)
         
-        with c1:
-            st.markdown(f"**🏠 {team_names['a']} - Eksik Oyuncular**")
-            
-            if team_a_injuries.status.value == "success" and team_a_injuries.data:
-                injuries_data = team_a_injuries.data
+        def display_team_injuries(team_name, injuries, suspensions, missing, column, team_id):
+            """Takım eksiklerini göster"""
+            with column:
+                st.markdown(f"### {'🏠' if column == c1 else '✈️'} {team_name}")
                 
-                # Aktif sakatlıkları filtrele
-                active_injuries = []
-                for injury in injuries_data:
-                    if injury.get('type', '').lower() in ['injury', 'sakatlik', 'missing']:
-                        active_injuries.append(injury)
+                total_count = len(injuries) + len(suspensions) + len(missing)
                 
-                if active_injuries:
-                    for injury in active_injuries[:10]:  # İlk 10 sakatlığı göster
-                        player_name = injury.get('player', {}).get('name', 'Bilinmiyor')
-                        injury_type = injury.get('type', 'Bilinmiyor')
+                if total_count == 0:
+                    st.success("✅ Takımda eksik oyuncu bulunmuyor")
+                    return
+                
+                # Sakatlıklar - maksimum 8 oyuncu göster
+                if injuries:
+                    display_count = min(len(injuries), 8)
+                    st.markdown(f"#### 🤕 Sakatlıklar (Gösterilen: {display_count}/{len(injuries)})")
+                    
+                    for injury in injuries[:8]:  # İlk 8 sakatlık
+                        player = injury.get('player', {})
+                        player_name = player.get('name', 'Bilinmiyor')
+                        player_photo = player.get('photo')
                         reason = injury.get('reason', 'Sebep belirtilmemiş')
-                        start_date = injury.get('start', 'Tarih bilinmiyor')
-                        end_date = injury.get('end', 'Dönüş tarihi belirsiz')
+                        start = injury.get('start', 'Bilinmiyor')
+                        end = injury.get('end', 'Belirsiz')
                         
-                        # Sakatlık türü ikonları
-                        injury_icons = {
-                            'injury': '🤕',
-                            'suspension': '🟥',
-                            'missing': '❓'
-                        }
-                        icon = injury_icons.get(injury_type.lower(), '⚠️')
+                        # Daha kompakt görünüm
+                        col_a, col_b = st.columns([3, 1])
+                        with col_a:
+                            st.markdown(f"**🤕 {player_name}**")
+                            st.caption(f"📋 {reason}")
+                        with col_b:
+                            if player_photo:
+                                st.image(player_photo, width=60)
+                
+                # Cezalılar - maksimum 5 oyuncu göster
+                if suspensions:
+                    display_count = min(len(suspensions), 5)
+                    st.markdown(f"#### 🟥 Cezalı Oyuncular (Gösterilen: {display_count}/{len(suspensions)})")
+                    
+                    for suspension in suspensions[:5]:
+                        player = suspension.get('player', {})
+                        player_name = player.get('name', 'Bilinmiyor')
+                        player_photo = player.get('photo')
+                        reason = suspension.get('reason', 'Ceza sebebi belirtilmemiş')
+                        start = suspension.get('start', 'Bilinmiyor')
+                        end = suspension.get('end', 'Belirsiz')
                         
-                        with st.expander(f"{icon} {player_name}"):
-                            st.write(f"**Durum:** {reason}")
-                            st.write(f"**Başlangıç:** {start_date}")
-                            st.write(f"**Tahmini Dönüş:** {end_date}")
-                else:
-                    st.success("✅ Aktif sakatlık bulunmuyor")
-            else:
-                st.info("🔍 Bu takım için sakatlık verisi bulunamadı")
+                        # Daha kompakt görünüm
+                        col_a, col_b = st.columns([3, 1])
+                        with col_a:
+                            st.markdown(f"**🟥 {player_name}**")
+                            st.caption(f"📋 {reason}")
+                        with col_b:
+                            if player_photo:
+                                st.image(player_photo, width=60)
+                
+                # Diğer eksikler
+                if missing:
+                    st.markdown(f"#### ❓ Diğer Eksikler ({len(missing)})")
+                    for miss in missing[:5]:
+                        player = miss.get('player', {})
+                        player_name = player.get('name', 'Bilinmiyor')
+                        reason = miss.get('reason', 'Sebep bilinmiyor')
+                        item_type = miss.get('type', 'N/A')
+                        
+                        st.markdown(f"❓ **{player_name}** - {reason} ({item_type})")
         
-        with c2:
-            st.markdown(f"**✈️ {team_names['b']} - Eksik Oyuncular**")
-            
-            if team_b_injuries.status.value == "success" and team_b_injuries.data:
-                injuries_data = team_b_injuries.data
-                
-                # Aktif sakatlıkları filtrele
-                active_injuries = []
-                for injury in injuries_data:
-                    if injury.get('type', '').lower() in ['injury', 'sakatlik', 'missing']:
-                        active_injuries.append(injury)
-                
-                if active_injuries:
-                    for injury in active_injuries[:10]:  # İlk 10 sakatlığı göster
-                        player_name = injury.get('player', {}).get('name', 'Bilinmiyor')
-                        injury_type = injury.get('type', 'Bilinmiyor')
-                        reason = injury.get('reason', 'Sebep belirtilmemiş')
-                        start_date = injury.get('start', 'Tarih bilinmiyor')
-                        end_date = injury.get('end', 'Dönüş tarihi belirsiz')
-                        
-                        # Sakatlık türü ikonları
-                        injury_icons = {
-                            'injury': '🤕',
-                            'suspension': '🟥',
-                            'missing': '❓'
-                        }
-                        icon = injury_icons.get(injury_type.lower(), '⚠️')
-                        
-                        with st.expander(f"{icon} {player_name}"):
-                            st.write(f"**Durum:** {reason}")
-                            st.write(f"**Başlangıç:** {start_date}")
-                            st.write(f"**Tahmini Dönüş:** {end_date}")
-                else:
-                    st.success("✅ Aktif sakatlık bulunmuyor")
-            else:
-                st.info("🔍 Bu takım için sakatlık verisi bulunamadı")
+        # Her iki takımı göster
+        display_team_injuries(team_names['a'], team_a_inj, team_a_sus, team_a_miss, c1, team_ids['a'])
+        display_team_injuries(team_names['b'], team_b_inj, team_b_sus, team_b_miss, c2, team_ids['b'])
         
         # Genel sakatlık analizi
         st.markdown("---")
-        st.markdown("### 📋 Sakatlık Analizi Özeti")
+        st.markdown("### � Eksikler Karşılaştırması")
         
-        total_a = len(team_a_injuries.data) if team_a_injuries.status.value == "success" and team_a_injuries.data else 0
-        total_b = len(team_b_injuries.data) if team_b_injuries.status.value == "success" and team_b_injuries.data else 0
+        total_a = len(team_a_inj) + len(team_a_sus) + len(team_a_miss)
+        total_b = len(team_b_inj) + len(team_b_sus) + len(team_b_miss)
         
-        col1, col2, col3 = st.columns(3)
+        col1, col2, col3, col4 = st.columns(4)
         
         with col1:
-            st.metric(f"🏠 {team_names['a']}", f"{total_a} eksik")
+            st.metric(f"🏠 {team_names['a']}", f"{total_a} eksik", 
+                     delta=f"{len(team_a_inj)} sakatlık" if len(team_a_inj) > 0 else None,
+                     delta_color="inverse")
         
         with col2:
-            st.metric(f"✈️ {team_names['b']}", f"{total_b} eksik")
+            st.metric(f"✈️ {team_names['b']}", f"{total_b} eksik",
+                     delta=f"{len(team_b_inj)} sakatlık" if len(team_b_inj) > 0 else None,
+                     delta_color="inverse")
         
         with col3:
-            advantage = "Dengeli"
-            if total_a > total_b:
-                advantage = f"{team_names['b']} avantajlı"
-            elif total_b > total_a:
-                advantage = f"{team_names['a']} avantajlı"
+            st.metric("🟥 Toplam Cezalı", f"{len(team_a_sus) + len(team_b_sus)}")
+        
+        with col4:
+            if total_a > total_b + 2:
+                advantage = f"✈️ {team_names['b']}"
+                advantage_color = "normal"
+            elif total_b > total_a + 2:
+                advantage = f"🏠 {team_names['a']}"
+                advantage_color = "normal"
+            else:
+                advantage = "⚖️ Dengeli"
+                advantage_color = "off"
             
-            st.metric("🎯 Durum", advantage)
+            st.metric("🎯 Kadro Avantajı", advantage)
     
     except Exception as e:
         st.error(f"❌ Sakatlık verileri alınırken hata oluştu: {str(e)}")
@@ -2117,6 +2352,779 @@ def display_odds_comparison_tab(fixture_id: int):
     except Exception as e:
         st.error(f"Bahis oranları alınırken hata oluştu: {str(e)}")
 
+# ============================================================================
+# YENİ GELİŞMİŞ ANALİZ TAB FONKSİYONLARI
+# ============================================================================
+
+def display_lstm_prediction_tab(analysis: Dict, team_names: Dict, team_ids: Dict, league_info: Dict, team_logos: Optional[Dict] = None):
+    """🧠 LSTM Derin Öğrenme Tahmin Tab'ı"""
+    st.subheader("🧠 LSTM Derin Öğrenme Tahmini")
+    
+    if not ADVANCED_FEATURES_AVAILABLE or predict_match_with_lstm is None:
+        st.warning("⚠️ LSTM modülü yüklenemedi. Lütfen lstm_predictor.py dosyasının mevcut olduğundan emin olun.")
+        return
+    
+    st.markdown("""
+    <div style='background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
+                padding: 20px; border-radius: 12px; margin-bottom: 20px;'>
+        <h3 style='color: white; margin: 0;'>📊 Bidirectional LSTM Sinir Ağı</h3>
+        <p style='color: rgba(255,255,255,0.9); margin: 8px 0 0 0;'>
+            Geçmiş maç verilerinden öğrenen derin öğrenme modeli ile tahmin
+        </p>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    # LSTM tahminini al
+    with st.spinner("🧠 LSTM modeli tahmin yapıyor..."):
+        try:
+            # Takımların son maçlarını al (api_utils kullanarak)
+            home_matches = api_utils.get_team_last_matches_stats(
+                API_KEY, BASE_URL, 
+                team_id=team_ids['a'],
+                limit=10,
+                skip_limit=True  # Sistem API kullan
+            )
+            
+            away_matches = api_utils.get_team_last_matches_stats(
+                API_KEY, BASE_URL,
+                team_id=team_ids['b'],
+                limit=10,
+                skip_limit=True  # Sistem API kullan
+            )
+            
+            # LSTM tahminini yap
+            if home_matches and away_matches and len(home_matches) >= 5 and len(away_matches) >= 5:
+                try:
+                    lstm_result = predict_match_with_lstm(
+                        home_team_matches=home_matches,
+                        away_team_matches=away_matches,
+                        lstm_model=None  # Yeni model oluştur
+                    )
+                except Exception as lstm_error:
+                    st.error(f"⚠️ LSTM model hatası: {str(lstm_error)}")
+                    # Fallback: Mevcut analiz sonuçlarından olasılıkları kullan
+                    probs = analysis.get('probabilities', {})
+                    
+                    lstm_result = {
+                        'prediction': {
+                            'home_win': probs.get('home', 0.33),
+                            'draw': probs.get('draw', 0.33),
+                            'away_win': probs.get('away', 0.33)
+                        },
+                        'confidence': 0.50,
+                        'expected_score': {
+                            'home': analysis.get('params', {}).get('expected_a', 1.5),
+                            'away': analysis.get('params', {}).get('expected_b', 1.5)
+                        },
+                        'training_matches': 'N/A (Fallback mode)',
+                        'epochs': 'N/A',
+                        'accuracy': 0.5
+                    }
+                    st.info("💡 LSTM modeli yerine mevcut analiz tahminleri kullanıldı.")
+            else:
+                home_count = len(home_matches) if home_matches else 0
+                away_count = len(away_matches) if away_matches else 0
+                st.warning(f"⚠️ LSTM tahmini için yeterli maç verisi yok. (Ev: {home_count}, Dep: {away_count})")
+                lstm_result = None
+            
+            if lstm_result and 'prediction' in lstm_result:
+                pred = lstm_result['prediction']
+                confidence = lstm_result.get('confidence', 0.5)
+                
+                # Ana tahmin kartı
+                st.markdown("### 🎯 Model Tahmini")
+                col1, col2, col3 = st.columns(3)
+                
+                with col1:
+                    st.metric(
+                        "Ev Sahibi Kazanma",
+                        f"{pred.get('home_win', 0):.1%}",
+                        help="LSTM modelinin ev sahibi takım galibiyeti tahmini"
+                    )
+                
+                with col2:
+                    st.metric(
+                        "Beraberlik",
+                        f"{pred.get('draw', 0):.1%}",
+                        help="LSTM modelinin beraberlik tahmini"
+                    )
+                
+                with col3:
+                    st.metric(
+                        "Deplasman Kazanma",
+                        f"{pred.get('away_win', 0):.1%}",
+                        help="LSTM modelinin deplasman takımı galibiyeti tahmini"
+                    )
+                
+                # Güven skoru
+                st.markdown("### 📈 Model Güveni")
+                confidence_pct = confidence * 100
+                
+                # Güven göstergesi
+                if confidence_pct >= 80:
+                    color = "#00c853"
+                    label = "Çok Yüksek"
+                    emoji = "🟢"
+                elif confidence_pct >= 65:
+                    color = "#64dd17"
+                    label = "Yüksek"
+                    emoji = "🟡"
+                elif confidence_pct >= 50:
+                    color = "#ffd600"
+                    label = "Orta"
+                    emoji = "🟠"
+                else:
+                    color = "#ff6d00"
+                    label = "Düşük"
+                    emoji = "🔴"
+                
+                st.markdown(f"""
+                <div style='background: linear-gradient(90deg, {color} 0%, {color}44 100%);
+                           padding: 15px; border-radius: 8px; text-align: center;'>
+                    <h2 style='margin: 0; color: white;'>{emoji} {confidence_pct:.1f}%</h2>
+                    <p style='margin: 5px 0 0 0; color: white;'>{label} Güven</p>
+                </div>
+                """, unsafe_allow_html=True)
+                
+                # Skor tahmini varsa göster
+                if 'expected_score' in lstm_result:
+                    st.markdown("### ⚽ Beklenen Skor")
+                    score = lstm_result['expected_score']
+                    
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        st.metric(team_names['a'], f"{score.get('home', 0):.2f}")
+                    with col2:
+                        st.metric(team_names['b'], f"{score.get('away', 0):.2f}")
+                
+                # Model detayları
+                with st.expander("🔍 Model Detayları"):
+                    st.markdown(f"""
+                    **Model Tipi:** Bidirectional LSTM
+                    
+                    **Özellikler:**
+                    - İki yönlü LSTM katmanları
+                    - Dropout regularizasyonu (%20)
+                    - Batch Normalization
+                    - Adam optimizer
+                    
+                    **Eğitim Verisi:**
+                    - Son {lstm_result.get('training_matches', 'N/A')} maç
+                    - {lstm_result.get('epochs', 'N/A')} epoch
+                    - Validation accuracy: {lstm_result.get('accuracy', 0):.1%}
+                    """)
+            
+            else:
+                st.warning("LSTM modeli tahmin yapamadı. Yeterli veri bulunmuyor olabilir.")
+        
+        except Exception as e:
+            st.error(f"LSTM tahmini sırasında hata: {str(e)}")
+            st.info("💡 İpucu: Model eğitimi için yeterli geçmiş maç verisi gereklidir.")
+
+
+def display_monte_carlo_tab(analysis: Dict, team_names: Dict, team_logos: Optional[Dict] = None):
+    """🎲 Monte Carlo Simülasyon Tab'ı"""
+    st.subheader("🎲 Monte Carlo Simülasyon Analizi")
+    
+    if not ADVANCED_FEATURES_AVAILABLE or MonteCarloSimulator is None:
+        st.warning("⚠️ Monte Carlo modülü yüklenemedi. Lütfen poisson_simulator.py dosyasının mevcut olduğundan emin olun.")
+        return
+    
+    st.markdown("""
+    <div style='background: linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%); 
+                padding: 20px; border-radius: 12px; margin-bottom: 20px;'>
+        <h3 style='color: white; margin: 0;'>🎲 10,000+ Simülasyon</h3>
+        <p style='color: rgba(255,255,255,0.9); margin: 8px 0 0 0;'>
+            Poisson dağılımı ile olasılıksal tahmin analizi
+        </p>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    # Analiz verilerinden lambda değerlerini al
+    params = analysis.get('params', {})
+    expected_a = params.get('expected_a', 1.5)
+    expected_b = params.get('expected_b', 1.5)
+    
+    # Monte Carlo simülasyonunu çalıştır
+    with st.spinner("🎲 10,000 simülasyon çalıştırılıyor..."):
+        try:
+            # Analiz parametrelerini al
+            params = analysis.get('params', {})
+            
+            # Beklenen gol değerlerini al
+            expected_a = params.get('expected_a', 1.5)
+            expected_b = params.get('expected_b', 1.5)
+            
+            # Hibrit hücum/savunma değerleri
+            home_att = params.get('home_att', 1.5)
+            home_def = params.get('home_def', 1.0)
+            away_att = params.get('away_att', 1.5)
+            away_def = params.get('away_def', 1.0)
+            home_adv = params.get('home_advantage', 1.1)
+            
+            # Debug: Değerleri kontrol et
+            with st.expander("🔍 Simülasyon Parametreleri (Debug)"):
+                st.write("**Mevcut Parametreler:**")
+                st.write(f"Ev Sahibi Hücum: {home_att:.3f}")
+                st.write(f"Ev Sahibi Savunma: {home_def:.3f}")
+                st.write(f"Deplasman Hücum: {away_att:.3f}")
+                st.write(f"Deplasman Savunma: {away_def:.3f}")
+                st.write(f"Ev Sahibi Avantajı: {home_adv:.3f}")
+                st.write(f"Beklenen Gol (Ev): {expected_a:.3f}")
+                st.write(f"Beklenen Gol (Dep): {expected_b:.3f}")
+                
+                st.write("\n**Tüm Analysis Params:**")
+                st.json(params)
+            
+            # PoissonMatchSimulator oluştur
+            poisson_sim = PoissonMatchSimulator(
+                home_attack=home_att,
+                home_defense=home_def,
+                away_attack=away_att,
+                away_defense=away_def,
+                home_advantage=home_adv
+            )
+            
+            # Monte Carlo simülatörü oluştur
+            mc_simulator = MonteCarloSimulator(poisson_sim)
+            
+            # Simülasyonu çalıştır
+            simulation_result = mc_simulator.run_simulation(n_simulations=10000)
+            
+            if simulation_result:
+                # Ana olasılıklar
+                st.markdown("### 📊 Simülasyon Sonuçları")
+                col1, col2, col3 = st.columns(3)
+                
+                with col1:
+                    home_win_pct = simulation_result.get('home_win_probability', 0) * 100
+                    st.metric(
+                        f"🏠 {team_names['a']} Galibiyeti",
+                        f"{home_win_pct:.1f}%",
+                        help="10,000 simülasyonda ev sahibi kazanma oranı"
+                    )
+                
+                with col2:
+                    draw_pct = simulation_result.get('draw_probability', 0) * 100
+                    st.metric(
+                        "🤝 Beraberlik",
+                        f"{draw_pct:.1f}%",
+                        help="10,000 simülasyonda beraberlik oranı"
+                    )
+                
+                with col3:
+                    away_win_pct = simulation_result.get('away_win_probability', 0) * 100
+                    st.metric(
+                        f"✈️ {team_names['b']} Galibiyeti",
+                        f"{away_win_pct:.1f}%",
+                        help="10,000 simülasyonda deplasman kazanma oranı"
+                    )
+                
+                # En olası skorlar
+                if 'most_likely_scores' in simulation_result:
+                    st.markdown("### 🎯 En Olası Skorlar")
+                    scores = simulation_result['most_likely_scores'][:5]
+                    
+                    for i, score in enumerate(scores, 1):
+                        col1, col2, col3 = st.columns([2, 1, 1])
+                        with col1:
+                            st.markdown(f"**{i}. {score['score']}**")
+                        with col2:
+                            st.markdown(f"**{score['probability']:.2%}**")
+                        with col3:
+                            # Progress bar
+                            st.progress(score['probability'], text=f"{score['count']} kez")
+                
+                # Gol tahminleri
+                st.markdown("### ⚽ Gol Tahminleri")
+                col1, col2 = st.columns(2)
+                
+                with col1:
+                    over_25 = simulation_result.get('over_2_5_probability', 0) * 100
+                    st.metric("2.5 Üst", f"{over_25:.1f}%")
+                    
+                    over_35 = simulation_result.get('over_3_5_probability', 0) * 100
+                    st.metric("3.5 Üst", f"{over_35:.1f}%")
+                
+                with col2:
+                    btts = simulation_result.get('btts_probability', 0) * 100
+                    st.metric("Karşılıklı Gol", f"{btts:.1f}%")
+                    
+                    avg_goals = simulation_result.get('average_total_goals', 0)
+                    st.metric("Ortalama Toplam Gol", f"{avg_goals:.2f}")
+                
+                # Skor dağılımı heat map
+                if 'score_matrix' in simulation_result:
+                    with st.expander("📈 Skor Dağılım Matrisi"):
+                        import plotly.graph_objects as go
+                        
+                        matrix = simulation_result['score_matrix']
+                        
+                        fig = go.Figure(data=go.Heatmap(
+                            z=matrix,
+                            x=list(range(len(matrix[0]))),
+                            y=list(range(len(matrix))),
+                            colorscale='RdYlGn',
+                            text=matrix,
+                            texttemplate='%{text:.1%}',
+                            hovertemplate='%{y}-%{x}: %{z:.2%}<extra></extra>'
+                        ))
+                        
+                        fig.update_layout(
+                            title="Skor Olasılık Dağılımı",
+                            xaxis_title=team_names['b'],
+                            yaxis_title=team_names['a'],
+                            height=500
+                        )
+                        
+                        st.plotly_chart(fig, use_container_width=True)
+            
+            else:
+                st.warning("Monte Carlo simülasyonu tamamlanamadı.")
+        
+        except Exception as e:
+            st.error(f"Monte Carlo simülasyonu sırasında hata: {str(e)}")
+
+
+def display_value_bet_tab(analysis: Dict, team_names: Dict, processed_odds: Optional[Dict], team_logos: Optional[Dict] = None):
+    """💎 Value Bet Analizi Tab'ı"""
+    st.subheader("💎 Value Bet & Kelly Criterion Analizi")
+    
+    if not ADVANCED_FEATURES_AVAILABLE or ValueBetDetector is None:
+        st.warning("⚠️ Value Bet modülü yüklenemedi. Lütfen value_bet_detector.py dosyasının mevcut olduğundan emin olun.")
+        return
+    
+    st.markdown("""
+    <div style='background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); 
+                padding: 20px; border-radius: 12px; margin-bottom: 20px;'>
+        <h3 style='color: white; margin: 0;'>💎 Değer Bahis Tespit Sistemi</h3>
+        <p style='color: rgba(255,255,255,0.9); margin: 8px 0 0 0;'>
+            Model tahminleri ile piyasa oranlarını karşılaştırarak değer bulma
+        </p>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    # Model olasılıklarını al
+    probabilities = analysis.get('probabilities', {})
+    model_home = probabilities.get('home', 0.33)
+    model_draw = probabilities.get('draw', 0.33)
+    model_away = probabilities.get('away', 0.33)
+    
+    # Piyasa oranlarını al - önce processed_odds'dan, yoksa analysis'den
+    if processed_odds:
+        # processed_odds formatı: {'home': {'odd': 2.0, 'prob': 50}, 'draw': {...}, 'away': {...}}
+        home_data = processed_odds.get('home', {})
+        draw_data = processed_odds.get('draw', {})
+        away_data = processed_odds.get('away', {})
+        
+        if home_data.get('odd'):
+            market_odds = {
+                'home': home_data.get('odd', 2.0),
+                'draw': draw_data.get('odd', 3.0),
+                'away': away_data.get('odd', 2.5)
+            }
+        else:
+            market_odds = None
+    else:
+        market_odds = None
+    
+    # Eğer processed_odds'dan oranlar alınamadıysa analysis'den dene
+    if not market_odds:
+        odds_data = analysis.get('odds_data', {})
+        if odds_data and odds_data.get('home'):
+            market_odds = {
+                'home': odds_data.get('home', {}).get('odd', 2.0),
+                'draw': odds_data.get('draw', {}).get('odd', 3.0),
+                'away': odds_data.get('away', {}).get('odd', 2.5)
+            }
+    
+    # Hala yoksa model olasılıklarından oluştur
+    if not market_odds:
+        market_odds = {
+            'home': 1 / model_home if model_home > 0 else 3.0,
+            'draw': 1 / model_draw if model_draw > 0 else 3.0,
+            'away': 1 / model_away if model_away > 0 else 3.0
+        }
+        st.info("💡 Gerçek piyasa oranları bulunamadı. Model olasılıklarından tahmini oranlar kullanılıyor.")
+    
+    # Debug: Oranları göster
+    with st.expander("🔍 Kullanılan Oranlar (Debug)"):
+        st.write("**Model Olasılıkları:**")
+        st.write(f"Ev Sahibi: {model_home:.2%}")
+        st.write(f"Beraberlik: {model_draw:.2%}")
+        st.write(f"Deplasman: {model_away:.2%}")
+        st.write("\n**Piyasa Oranları:**")
+        st.json(market_odds)
+    
+    # Value bet analizi
+    with st.spinner("💎 Value bet'ler hesaplanıyor..."):
+        try:
+            # Basit value bet hesaplama
+            value_bets = {}
+            
+            for bet_type, market_odd in market_odds.items():
+                model_prob = {'home': model_home, 'draw': model_draw, 'away': model_away}[bet_type]
+                
+                # Expected Value hesapla: EV = (probability * odd) - 1
+                expected_value = (model_prob * market_odd) - 1
+                
+                # Value var mı?
+                if expected_value > 0.05:  # %5'ten fazla pozitif value
+                    value_percentage = expected_value * 100
+                    
+                    # Kelly Criterion
+                    kelly_stake = (model_prob * market_odd - 1) / (market_odd - 1)
+                    kelly_stake = max(0, min(kelly_stake, 0.05))  # Max %5
+                    
+                    value_bets[bet_type] = {
+                        'has_value': True,
+                        'model_probability': model_prob,
+                        'market_odds': market_odd,
+                        'value_percentage': value_percentage,
+                        'expected_value': expected_value,
+                        'kelly_stake': kelly_stake
+                    }
+            
+            if value_bets:
+                st.markdown("### 🎯 Tespit Edilen Value Bet'ler")
+                
+                value_found = False
+                for bet_type, value_data in value_bets.items():
+                    if value_data['has_value']:
+                        value_found = True
+                        
+                        # Bahis tipi etiketleri
+                        labels = {
+                            'home': f"🏠 {team_names['a']} Kazanır",
+                            'draw': "🤝 Beraberlik",
+                            'away': f"✈️ {team_names['b']} Kazanır"
+                        }
+                        
+                        st.markdown(f"""
+                        <div style='background: linear-gradient(135deg, #ffd89b 0%, #19547b 100%);
+                                   padding: 15px; border-radius: 10px; margin: 10px 0;'>
+                            <h4 style='color: white; margin: 0;'>💎 {labels[bet_type]}</h4>
+                        </div>
+                        """, unsafe_allow_html=True)
+                        
+                        col1, col2, col3, col4 = st.columns(4)
+                        
+                        with col1:
+                            st.metric(
+                                "Model Olasılığı",
+                                f"{value_data['model_probability']:.1%}",
+                                help="AI modelinin hesapladığı gerçek olasılık"
+                            )
+                        
+                        with col2:
+                            st.metric(
+                                "Piyasa Oranı",
+                                f"{value_data['market_odds']:.2f}",
+                                help="Bahis sitesinin verdiği oran"
+                            )
+                        
+                        with col3:
+                            value_pct = value_data['value_percentage']
+                            st.metric(
+                                "Value %",
+                                f"+{value_pct:.1f}%",
+                                delta="Pozitif Değer",
+                                delta_color="normal",
+                                help="Model tahmininin piyasaya göre avantajı"
+                            )
+                        
+                        with col4:
+                            # Kelly Criterion zaten hesaplandı
+                            kelly_pct = value_data['kelly_stake'] * 100
+                            
+                            st.metric(
+                                "Kelly Stake",
+                                f"{kelly_pct:.2f}%",
+                                help="Optimal bahis miktarı (bankroll yüzdesi)"
+                            )
+                        
+                        # Arbitraj kontrolü
+                        if 'arbitrage' in value_data:
+                            st.success("✅ Arbitraj fırsatı tespit edildi!")
+                
+                if not value_found:
+                    st.info("ℹ️ Bu maçta value bet tespit edilemedi. Piyasa oranları modelimize yakın.")
+                    
+                    # Yine de karşılaştırma göster
+                    st.markdown("### 📊 Model vs Piyasa Karşılaştırması")
+                    
+                    comparison_data = []
+                    for bet_type in ['home', 'draw', 'away']:
+                        labels = {
+                            'home': team_names['a'],
+                            'draw': "Beraberlik",
+                            'away': team_names['b']
+                        }
+                        
+                        model_prob = {'home': model_home, 'draw': model_draw, 'away': model_away}[bet_type]
+                        market_odd = market_odds[bet_type]
+                        market_prob = 1 / market_odd if market_odd > 0 else 0
+                        
+                        comparison_data.append({
+                            'Sonuç': labels[bet_type],
+                            'Model Olasılık': f"{model_prob:.1%}",
+                            'Piyasa Oran': f"{market_odd:.2f}",
+                            'Piyasa Olasılık': f"{market_prob:.1%}",
+                            'Fark': f"{(model_prob - market_prob):.1%}"
+                        })
+                    
+                    df_comp = pd.DataFrame(comparison_data)
+                    st.dataframe(df_comp, use_container_width=True, hide_index=True)
+            
+            else:
+                st.warning("Value bet analizi yapılamadı.")
+        
+        except Exception as e:
+            st.error(f"Value bet analizi sırasında hata: {str(e)}")
+    
+    # Arbitraj fırsatları
+    with st.expander("🔍 Arbitraj Fırsatları"):
+        try:
+            # Basit arbitraj kontrolü
+            # Arbitraj var mı: 1/odd1 + 1/odd2 + 1/odd3 < 1
+            total_implied = (1/market_odds['home'] + 1/market_odds['draw'] + 1/market_odds['away'])
+            
+            if total_implied < 1.0:
+                profit = (1 - total_implied) * 100
+                st.success("🎉 Arbitraj fırsatı bulundu!")
+                st.metric("Garanti Kar", f"{profit:.2f}%")
+                
+                # Optimal stake dağılımı
+                st.markdown("**Önerilen Bahisler:**")
+                for bet_type, odd in market_odds.items():
+                    stake_pct = (1/odd) / total_implied * 100
+                    labels = {'home': team_names['a'], 'draw': 'Beraberlik', 'away': team_names['b']}
+                    st.markdown(f"- {labels[bet_type]}: {stake_pct:.2f}% bahis koyun")
+            else:
+                st.info("Bu maçta arbitraj fırsatı bulunmuyor.")
+                st.write(f"Toplam implied probability: {total_implied:.4f} (>1 = arbitraj yok)")
+        
+        except Exception as e:
+            st.warning(f"Arbitraj analizi yapılamadı: {str(e)}")
+
+
+def display_xg_tab(analysis: Dict, team_names: Dict, team_ids: Dict, team_logos: Optional[Dict] = None):
+    """⚽ Expected Goals (xG) Analizi Tab'ı"""
+    st.subheader("⚽ Expected Goals (xG) Analizi")
+    
+    if not ADVANCED_FEATURES_AVAILABLE or xGCalculator is None:
+        st.warning("⚠️ xG modülü yüklenemedi. Lütfen xg_calculator.py dosyasının mevcut olduğundan emin olun.")
+        return
+    
+    st.markdown("""
+    <div style='background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); 
+                padding: 20px; border-radius: 12px; margin-bottom: 20px;'>
+        <h3 style='color: white; margin: 0;'>⚽ Pozisyon Bazlı xG Hesaplama</h3>
+        <p style='color: rgba(255,255,255,0.9); margin: 8px 0 0 0;'>
+            Şut pozisyonlarından beklenen gol analizi
+        </p>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    # Takım istatistiklerinden xG hesapla
+    with st.spinner("⚽ xG değerleri hesaplanıyor..."):
+        try:
+            stats = analysis.get('stats', {})
+            
+            # xG Calculator oluştur
+            xg_calc = xGCalculator()
+            
+            # Ev sahibi xG
+            home_shots = stats.get('shots_a', 10)
+            home_on_target = stats.get('shots_on_target_a', 5)
+            home_box_shots = int(home_shots * 0.6)  # Tahmini ceza sahası içi şutlar
+            
+            home_xg = xg_calc.calculate_team_xg(
+                total_shots=home_shots,
+                shots_on_target=home_on_target,
+                box_shots=home_box_shots
+            )
+            
+            # Deplasman xG
+            away_shots = stats.get('shots_b', 10)
+            away_on_target = stats.get('shots_on_target_b', 5)
+            away_box_shots = int(away_shots * 0.6)
+            
+            away_xg = xg_calc.calculate_team_xg(
+                total_shots=away_shots,
+                shots_on_target=away_on_target,
+                box_shots=away_box_shots
+            )
+            
+            # Ana xG metrikleri
+            st.markdown("### 📊 Takım xG Değerleri")
+            col1, col2, col3 = st.columns(3)
+            
+            with col1:
+                st.metric(
+                    f"🏠 {team_names['a']} xG",
+                    f"{home_xg['total_xg']:.2f}",
+                    help="Ev sahibi takımın beklenen gol değeri"
+                )
+            
+            with col2:
+                xg_diff = home_xg['total_xg'] - away_xg['total_xg']
+                st.metric(
+                    "⚖️ xG Farkı",
+                    f"{abs(xg_diff):.2f}",
+                    delta=f"{team_names['a'] if xg_diff > 0 else team_names['b']} Avantajlı",
+                    help="İki takım arasındaki xG farkı"
+                )
+            
+            with col3:
+                st.metric(
+                    f"✈️ {team_names['b']} xG",
+                    f"{away_xg['total_xg']:.2f}",
+                    help="Deplasman takımının beklenen gol değeri"
+                )
+            
+            # xG breakdown
+            st.markdown("### 🎯 xG Dağılımı")
+            
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                st.markdown(f"#### 🏠 {team_names['a']}")
+                
+                # xG pie chart
+                import plotly.graph_objects as go
+                
+                fig_home = go.Figure(data=[go.Pie(
+                    labels=['Ceza Sahası İçi', 'Ceza Sahası Dışı'],
+                    values=[
+                        home_xg.get('box_xg', home_xg['total_xg'] * 0.7),
+                        home_xg.get('outside_box_xg', home_xg['total_xg'] * 0.3)
+                    ],
+                    marker=dict(colors=['#00c853', '#ff6d00'])
+                )])
+                
+                fig_home.update_layout(
+                    title="Pozisyon Dağılımı",
+                    height=300
+                )
+                
+                st.plotly_chart(fig_home, use_container_width=True)
+                
+                # İstatistikler
+                st.markdown(f"""
+                **📈 İstatistikler:**
+                - Toplam Şut: {home_shots}
+                - İsabetli Şut: {home_on_target}
+                - Ceza Sahası İçi: {home_box_shots}
+                - İsabet Oranı: {(home_on_target/home_shots*100) if home_shots > 0 else 0:.1f}%
+                - Şut Başına xG: {(home_xg['total_xg']/home_shots) if home_shots > 0 else 0:.3f}
+                """)
+            
+            with col2:
+                st.markdown(f"#### ✈️ {team_names['b']}")
+                
+                # xG pie chart
+                fig_away = go.Figure(data=[go.Pie(
+                    labels=['Ceza Sahası İçi', 'Ceza Sahası Dışı'],
+                    values=[
+                        away_xg.get('box_xg', away_xg['total_xg'] * 0.7),
+                        away_xg.get('outside_box_xg', away_xg['total_xg'] * 0.3)
+                    ],
+                    marker=dict(colors=['#1e88e5', '#ffa726'])
+                )])
+                
+                fig_away.update_layout(
+                    title="Pozisyon Dağılımı",
+                    height=300
+                )
+                
+                st.plotly_chart(fig_away, use_container_width=True)
+                
+                # İstatistikler
+                st.markdown(f"""
+                **📈 İstatistikler:**
+                - Toplam Şut: {away_shots}
+                - İsabetli Şut: {away_on_target}
+                - Ceza Sahası İçi: {away_box_shots}
+                - İsabet Oranı: {(away_on_target/away_shots*100) if away_shots > 0 else 0:.1f}%
+                - Şut Başına xG: {(away_xg['total_xg']/away_shots) if away_shots > 0 else 0:.3f}
+                """)
+            
+            # Karşılaştırma grafiği
+            st.markdown("### 📊 xG Karşılaştırması")
+            
+            fig_comp = go.Figure()
+            
+            fig_comp.add_trace(go.Bar(
+                name=team_names['a'],
+                x=['Toplam xG', 'Ceza Sahası İçi', 'Ceza Sahası Dışı'],
+                y=[
+                    home_xg['total_xg'],
+                    home_xg.get('box_xg', home_xg['total_xg'] * 0.7),
+                    home_xg.get('outside_box_xg', home_xg['total_xg'] * 0.3)
+                ],
+                marker_color='#00c853'
+            ))
+            
+            fig_comp.add_trace(go.Bar(
+                name=team_names['b'],
+                x=['Toplam xG', 'Ceza Sahası İçi', 'Ceza Sahası Dışı'],
+                y=[
+                    away_xg['total_xg'],
+                    away_xg.get('box_xg', away_xg['total_xg'] * 0.7),
+                    away_xg.get('outside_box_xg', away_xg['total_xg'] * 0.3)
+                ],
+                marker_color='#1e88e5'
+            ))
+            
+            fig_comp.update_layout(
+                barmode='group',
+                title='Takım Bazlı xG Karşılaştırması',
+                yaxis_title='Expected Goals (xG)',
+                height=400
+            )
+            
+            st.plotly_chart(fig_comp, use_container_width=True)
+            
+            # xG Performance Rating
+            st.markdown("### ⭐ xG Performans Değerlendirmesi")
+            
+            # Model beklentisi ile xG karşılaştırması
+            expected_a = analysis.get('params', {}).get('expected_a', 1.5)
+            expected_b = analysis.get('params', {}).get('expected_b', 1.5)
+            
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                home_diff = home_xg['total_xg'] - expected_a
+                home_rating = "🔥 Ofansif" if home_diff > 0.3 else "✅ Normal" if home_diff > -0.3 else "🛡️ Defansif"
+                
+                st.metric(
+                    f"{team_names['a']} Performans",
+                    home_rating,
+                    delta=f"{home_diff:+.2f} model beklentisine göre",
+                    help="xG değerinin model beklentisine göre durumu"
+                )
+            
+            with col2:
+                away_diff = away_xg['total_xg'] - expected_b
+                away_rating = "🔥 Ofansif" if away_diff > 0.3 else "✅ Normal" if away_diff > -0.3 else "🛡️ Defansif"
+                
+                st.metric(
+                    f"{team_names['b']} Performans",
+                    away_rating,
+                    delta=f"{away_diff:+.2f} model beklentisine göre",
+                    help="xG değerinin model beklentisine göre durumu"
+                )
+        
+        except Exception as e:
+            st.error(f"xG hesaplaması sırasında hata: {str(e)}")
+            st.info("💡 İpucu: xG hesaplaması için şut istatistikleri gereklidir.")
+
+# ============================================================================
+# GELİŞMİŞ ANALİZ TAB FONKSİYONLARI SONU
+# ============================================================================
+
 @st.cache_data(ttl=3600, show_spinner=False)  # 1 saat cache - daha sık güncelleme
 def analyze_fixture_summary(fixture: Dict, model_params: Dict) -> Optional[Dict]:
     """
@@ -2124,38 +3132,99 @@ def analyze_fixture_summary(fixture: Dict, model_params: Dict) -> Optional[Dict]
     Bu fonksiyon maç panosu için kullanılır.
     """
     try:
-        id_a, name_a, id_b, name_b = fixture['home_id'], fixture['home_name'], fixture['away_id'], fixture['away_name']
+        # API formatından bilgileri çıkar
+        teams = fixture.get('teams', {})
+        home_team = teams.get('home', {})
+        away_team = teams.get('away', {})
+        fixture_info = fixture.get('fixture', {})
+        league_info_raw = fixture.get('league', {})
+        goals = fixture.get('goals', {})
+        
+        # Takım bilgilerini al
+        id_a = home_team.get('id')
+        name_a = home_team.get('name', '?')
+        id_b = away_team.get('id')
+        name_b = away_team.get('name', '?')
+        
+        # Maç bilgilerini al
+        match_id = fixture_info.get('id')
+        match_time = fixture_info.get('date', '')
+        league_id = league_info_raw.get('id')
+        league_name = league_info_raw.get('name', '')
+        season = league_info_raw.get('season')
+        
+        # Logo bilgileri
+        home_logo = home_team.get('logo', '')
+        away_logo = away_team.get('logo', '')
+        
+        # Saat formatı
+        try:
+            if match_time:
+                from datetime import datetime
+                dt = datetime.fromisoformat(match_time.replace('Z', '+00:00'))
+                time_str = dt.strftime('%H:%M')
+            else:
+                time_str = ''
+        except:
+            time_str = ''
+        
+        # Skor bilgisi
+        home_goals = goals.get('home')
+        away_goals = goals.get('away')
+        actual_score_str = f"{home_goals}-{away_goals}" if home_goals is not None and away_goals is not None else ""
+        
+        # Kazanan belirleme
+        winner_home = None
+        if home_goals is not None and away_goals is not None:
+            if home_goals > away_goals:
+                winner_home = True
+            elif away_goals > home_goals:
+                winner_home = False
+            else:
+                winner_home = None  # Berabere
+        
+        # ID kontrolü
+        if not id_a or not id_b or not match_id:
+            return None
+        
+        # HER ZAMAN skip_limit=True - sistem API'si
+        league_info = api_utils.get_team_league_info(API_KEY, BASE_URL, id_a, skip_limit=True)
         # HER ZAMAN skip_limit=True - sistem API'si
         league_info = api_utils.get_team_league_info(API_KEY, BASE_URL, id_a, skip_limit=True)
         
         # Eğer takımdan lig bilgisi alınamazsa, fixture'daki lig bilgisini kullan
-        if not league_info and 'league_id' in fixture:
+        if not league_info and league_id:
             league_info = {
-                'league_id': fixture['league_id'],
-                'season': fixture.get('season', datetime.now().year if datetime.now().month > 6 else datetime.now().year - 1)
+                'league_id': league_id,
+                'season': season or (datetime.now().year if datetime.now().month > 6 else datetime.now().year - 1)
             }
         
         if not league_info: 
             st.warning(f"⚠️ {name_a} vs {name_b}: Lig bilgisi alınamadı")
             return None
         # HER ZAMAN skip_api_limit=True - sistem API'si
-        analysis = analysis_logic.run_core_analysis(API_KEY, BASE_URL, id_a, id_b, name_a, name_b, fixture['match_id'], league_info, model_params, LIG_ORTALAMA_GOL, skip_api_limit=True)
+        analysis = analysis_logic.run_core_analysis(API_KEY, BASE_URL, id_a, id_b, name_a, name_b, match_id, league_info, model_params, LIG_ORTALAMA_GOL, skip_api_limit=True)
         if not analysis: 
             st.warning(f"⚠️ {name_a} vs {name_b}: Analiz verisi oluşturulamadı")
             return None
         probs = analysis['probs']
         max_prob_key = max(probs, key=lambda k: probs[k] if 'win' in k or 'draw' in k else -1)
         decision = f"{name_a} K." if max_prob_key == 'win_a' else f"{name_b} K." if max_prob_key == 'win_b' else "Ber."
-        result_icon, actual_score_str = "", fixture.get('actual_score', '')
+        result_icon = ""
+        
         if actual_score_str:
-            is_home_winner = fixture.get('winner_home')
-            predicted_home_win = " K." in decision and name_a in decision; predicted_away_win = " K." in decision and name_b in decision; predicted_draw = "Ber." in decision
-            actual_winner = 'home' if is_home_winner is True else 'away' if is_home_winner is False else 'draw'
-            if (predicted_home_win and actual_winner == 'home') or (predicted_away_win and actual_winner == 'away') or (predicted_draw and actual_winner == 'draw'): result_icon = "✅"
-            else: result_icon = "❌"
+            predicted_home_win = " K." in decision and name_a in decision
+            predicted_away_win = " K." in decision and name_b in decision
+            predicted_draw = "Ber." in decision
+            actual_winner = 'home' if winner_home is True else 'away' if winner_home is False else 'draw'
+            if (predicted_home_win and actual_winner == 'home') or (predicted_away_win and actual_winner == 'away') or (predicted_draw and actual_winner == 'draw'): 
+                result_icon = "✅"
+            else: 
+                result_icon = "❌"
+        
         return {
-            "Saat": fixture['time'], 
-            "Lig": fixture['league_name'], 
+            "Saat": time_str, 
+            "Lig": league_name, 
             "Ev Sahibi": name_a, 
             "Deplasman": name_b, 
             "Tahmin": decision, 
@@ -2166,14 +3235,19 @@ def analyze_fixture_summary(fixture: Dict, model_params: Dict) -> Optional[Dict]
             "KG VAR (%)": probs['kg_var'], 
             "home_id": id_a, 
             "away_id": id_b, 
-            "fixture_id": fixture['match_id'],
-            "home_logo": fixture.get('home_logo', ''),
-            "away_logo": fixture.get('away_logo', ''),
-            "league_id": fixture.get('league_id'),
-            "season": fixture.get('season')
+            "fixture_id": match_id,
+            "home_logo": home_logo,
+            "away_logo": away_logo,
+            "league_id": league_id,
+            "season": season
         }
     except Exception as e: 
-        st.error(f"❌ {fixture.get('home_name', '?')} vs {fixture.get('away_name', '?')}: Hata - {str(e)}")
+        # Hata mesajını daha detaylı yap
+        home_name = fixture.get('teams', {}).get('home', {}).get('name', '?')
+        away_name = fixture.get('teams', {}).get('away', {}).get('name', '?')
+        st.error(f"❌ {home_name} vs {away_name}: Hata - {str(e)}")
+        import traceback
+        print(f"Analyze fixture summary error: {traceback.format_exc()}")
         return None
 
 def display_detailed_match_analysis(fixture_id: int, model_params: Dict):
@@ -2703,8 +3777,8 @@ def analyze_and_display(team_a_data: Dict, team_b_data: Dict, fixture_id: int, m
     </style>
     """, unsafe_allow_html=True)
     
-    tab_list = ["🎯 Tahmin Özeti", "📈 İstatistikler", "🎲 Detaylı İddaa", "🚑 Eksikler", "📊 Puan Durumu", "⚔️ H2H Analizi", "⚖️ Hakem Analizi", "👨‍💼 Antrenörler", "🏟️ Stad Bilgisi", "🔮 AI Tahmin", "💰 Bahis Oranları", "⚙️ Analiz Parametreleri"]
-    tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9, tab10, tab11, tab12 = st.tabs(tab_list)
+    tab_list = ["🎯 Tahmin Özeti", "📈 İstatistikler", "🎲 Detaylı İddaa", "🚑 Eksikler", "📊 Puan Durumu", "⚔️ H2H Analizi", "⚖️ Hakem Analizi", "👨‍💼 Antrenörler", "⚙️ Detaylı Maç Analizi"]
+    tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9 = st.tabs(tab_list)
 
     team_logos = {'a': logo_a, 'b': logo_b}
     
@@ -2716,10 +3790,7 @@ def analyze_and_display(team_a_data: Dict, team_b_data: Dict, fixture_id: int, m
     with tab6: display_h2h_tab(processed_h2h, team_names, team_ids)
     with tab7: display_referee_tab(processed_referee_stats)
     with tab8: display_coaches_tab(team_ids, team_names)
-    with tab9: display_venue_tab(fixture_id, fixture_details)
-    with tab10: display_ai_predictions_tab(fixture_id)
-    with tab11: display_odds_comparison_tab(fixture_id)
-    with tab12: display_parameters_tab(analysis['params'], team_names)
+    with tab9: display_parameters_tab(analysis['params'], team_names)
 
 @st.cache_data(ttl=3600, show_spinner=False)  # 1 saat cache - sık güncelleme
 def get_top_predictions_today(model_params: Dict, today_date: date, is_admin_user: bool, top_n: int = 5) -> List[Dict]:
@@ -3014,7 +4085,7 @@ def build_dashboard_view(model_params: Dict):
     
     progress_bar = st.progress(0, text="Maçlar analiz ediliyor...")
     # MAÇ PANOSUNDA ÖZET ANALİZ - SİSTEM API'Sİ KULLAN (use_system_api parametresi kaldırıldı, artık her zaman sistem API)
-    analyzed_fixtures = [summary for i, f in enumerate(fixtures) if (summary := analyze_fixture_summary(f, model_params)) and (progress_bar.progress((i + 1) / len(fixtures), f"Analiz: {f['home_name']}", ))]
+    analyzed_fixtures = [summary for i, f in enumerate(fixtures) if (summary := analyze_fixture_summary(f, model_params)) and (progress_bar.progress((i + 1) / len(fixtures), f"Analiz: {f.get('teams', {}).get('home', {}).get('name', 'Maç')}", ))]
     progress_bar.empty()
     if not analyzed_fixtures: st.error("Hiçbir maç analiz edilemedi."); return
     df = pd.DataFrame(analyzed_fixtures)
@@ -4684,8 +5755,8 @@ def main():
             # URL'den view parametresini al, yoksa 'home' yap
             query_params = st.query_params
             view_param = query_params.get('view', 'home')
-            # Geçerli view'lar: home, dashboard, manual, codes, enhanced, timezone, coaches, venues, predictions, odds, pro_analysis
-            valid_views = ['home', 'dashboard', 'manual', 'codes', 'enhanced', 'timezone', 'coaches', 'venues', 'predictions', 'odds', 'pro_analysis']
+            # Geçerli view'lar: home, dashboard, manual, codes, enhanced, timezone, odds, pro_analysis, xg_analysis, ai_chat, lstm_predict, monte_carlo, value_bets, momentum
+            valid_views = ['home', 'dashboard', 'manual', 'codes', 'enhanced', 'timezone', 'odds', 'pro_analysis', 'xg_analysis', 'ai_chat', 'lstm_predict', 'monte_carlo', 'value_bets', 'momentum']
             st.session_state.view = view_param if view_param in valid_views else 'home'
         
         # Favori ligleri config'den yükle (ilk giriş)
@@ -4749,23 +5820,42 @@ def main():
             if st.button("🌍", use_container_width=True, key="nav_timezone", help="Saat Dilimi"):
                 update_url_and_rerun('timezone')
         with nav_col6:
-            if st.button("👨‍💼", use_container_width=True, key="nav_coaches", help="Antrenörler"):
-                update_url_and_rerun('coaches')
+            if st.button("�", use_container_width=True, key="nav_odds", help="Bahis Oranları"):
+                update_url_and_rerun('odds')
         with nav_col7:
-            if st.button("🏟️", use_container_width=True, key="nav_venues", help="Stadlar"):
-                update_url_and_rerun('venues')
+            if st.button("🔒", use_container_width=True, key="nav_pro_analysis", help="Güvenli Analiz"):
+                update_url_and_rerun('pro_analysis')
         with nav_col8:
-            if st.button("🔮", use_container_width=True, key="nav_predictions", help="Tahminler"):
-                update_url_and_rerun('predictions')
-        
+            if st.button("⚽", use_container_width=True, key="nav_xg_analysis", help="xG Analizi"):
+                update_url_and_rerun('xg_analysis')
+
         # Üçüncü sıra navigasyon butonları
         nav_col9, nav_col10, nav_col11, nav_col12 = st.sidebar.columns(4)
         with nav_col9:
-            if st.button("💰", use_container_width=True, key="nav_odds", help="Bahis Oranları"):
-                update_url_and_rerun('odds')
+            if st.button("🤖", use_container_width=True, key="nav_ai_chat", help="AI Asistan"):
+                update_url_and_rerun('ai_chat')
         with nav_col10:
-            if st.button("🔒", use_container_width=True, key="nav_pro_analysis", help="Güvenli Analiz"):
-                update_url_and_rerun('pro_analysis')
+            if st.button("📊", use_container_width=True, key="nav_momentum", help="Momentum"):
+                update_url_and_rerun('momentum')
+        with nav_col11:
+            if st.button("🧠", use_container_width=True, key="nav_lstm", help="LSTM Tahmin"):
+                update_url_and_rerun('lstm_predict')
+        with nav_col12:
+            if st.button("🎲", use_container_width=True, key="nav_monte_carlo", help="Monte Carlo"):
+                update_url_and_rerun('monte_carlo')
+        
+        # Dördüncü sıra navigasyon butonları
+        nav_col13, nav_col14, nav_col15, nav_col16 = st.sidebar.columns(4)
+        with nav_col13:
+            if st.button("💎", use_container_width=True, key="nav_value_bets", help="Value Bet"):
+                update_url_and_rerun('value_bets')
+        with nav_col14:
+            st.empty()
+        with nav_col15:
+            st.empty()
+        with nav_col16:
+            st.empty()
+        
         
         st.sidebar.markdown("---")
         
@@ -5533,8 +6623,28 @@ def main():
             display_odds_management()
         elif st.session_state.view == 'pro_analysis':
             display_professional_analysis()
+        elif st.session_state.view == 'xg_analysis':
+            display_xg_analysis_page()
+        elif st.session_state.view == 'ai_chat':
+            display_ai_chat_page()
+        elif st.session_state.view == 'lstm_predict':
+            display_lstm_page()
+        elif st.session_state.view == 'monte_carlo':
+            display_simulation_page()
+        elif st.session_state.view == 'value_bets':
+            render_betting_page()
+        elif st.session_state.view == 'sentiment':
+            display_sentiment_page()
         elif st.session_state.view == 'codes':
             build_codes_view()
+        elif st.session_state.view == 'heatmap':
+            display_heatmap_page()
+        elif st.session_state.view == 'momentum':
+            display_momentum_page()
+        elif st.session_state.view == '3d_viz':
+            display_3d_visualization_page()
+        elif st.session_state.view == 'tracking':
+            display_performance_tracking_page()
 
     elif st.session_state["authentication_status"] is False:
         st.error('Kullanıcı adı/şifre hatalı')
@@ -5621,8 +6731,32 @@ def search_upcoming_fixtures_by_team(api, team_name_query):
         current_date_str = current_date.strftime('%Y-%m-%d')
         print(f"🔍 [{current_date_str}] Arama yapılıyor: {team_name_query}")
         
-        # Önce takımları ara
+        # Türkçe karakter normalizasyonu
+        def normalize_team_name(name):
+            """Türkçe karakterleri normalize et"""
+            replacements = {
+                'ğ': 'g', 'Ğ': 'G',
+                'ü': 'u', 'Ü': 'U',
+                'ş': 's', 'Ş': 'S',
+                'ı': 'i', 'İ': 'I',
+                'ö': 'o', 'Ö': 'O',
+                'ç': 'c', 'Ç': 'C'
+            }
+            for tr_char, en_char in replacements.items():
+                name = name.replace(tr_char, en_char)
+            return name
+        
+        # Hem orijinal hem normalize edilmiş isimle ara
+        normalized_query = normalize_team_name(team_name_query)
+        
+        # Önce orijinal isimle ara
         teams_result = api.search_teams(team_name_query)
+        
+        # Başarısızsa normalize edilmiş isimle ara
+        if teams_result.status.value != "success" or not teams_result.data:
+            print(f"⚠️ Orijinal isimle bulunamadı, normalize ediliyor: {normalized_query}")
+            teams_result = api.search_teams(normalized_query)
+        
         if teams_result.status.value != "success" or not teams_result.data:
             return []
         
@@ -5780,6 +6914,35 @@ def display_professional_analysis():
     st.markdown("# 🔒 GÜVENLİ ANALİZ MERKEZİ")
     st.markdown("*Güvenilir API-Football v3 özellikleri ile derinlemesine maç analizi*")
     
+    # Açıklama bölümü
+    with st.expander("📖 Profesyonel Analiz Nasıl Kullanılır?", expanded=False):
+        st.markdown("""
+        ### 🔒 Profesyonel Analiz Merkezi Nedir?
+        
+        **API-Football v3** kullanarak gerçek zamanlı maç verilerini analiz eden gelişmiş modül.
+        
+        #### 🎯 Özellikler:
+        
+        1. **Gelişmiş İstatistikler**: Posesyon, şut, pas, faul detayları
+        2. **Form Analizi**: Son 10 maçın derinlemesine incelemesi
+        3. **H2H (Kafa Kafaya)**: Takımların geçmiş karşılaşmaları
+        4. **Oyuncu İstatistikleri**: Gol, asist, kart, dakika
+        5. **Canlı Maç Takibi**: Gerçek zamanlı skor ve olaylar
+        6. **Tahmin Motorları**: Çoklu model konsensüsü
+        
+        #### 💡 Nasıl Kullanılır?
+        
+        1. **Maç Seçin**: Takım adı veya lig ile arama yapın
+        2. **Analiz Türü**: Form, H2H, İstatistik seçin
+        3. **Detayları İnceleyin**: Grafik ve tablolarla görselleştirin
+        4. **Karşılaştırın**: İki takımı yan yana değerlendirin
+        
+        #### ⚠️ API Limiti:
+        - Günlük: 100 istek (ücretsiz plan)
+        - Aşırı kullanımdan kaçının
+        - Cache kullanılarak optimize edilmiştir
+        """)
+    
     # API anahtarını al
     try:
         from football_api_v3 import APIFootballV3, AdvancedAnalytics, initialize_api, LiveDataStreamer, RealTimeAnalyzer, AdvancedReliabilityEngine, EnhancedPredictionEngine, IntelligentValidationSystem, SmartConfidenceCalculator
@@ -5870,7 +7033,16 @@ def display_professional_analysis():
                             st.session_state['selected_fixture_comprehensive'] = match
                             st.success(f"Seçildi: {match['home_team']} vs {match['away_team']}")
             else:
-                st.info("Bu takım adıyla maç bulunamadı. Farklı bir isim deneyin.")
+                st.warning(f"⚠️ '{team_search}' için maç bulunamadı")
+                st.info("""
+                **💡 İpuçları:**
+                - Takım adını İngilizce yazmayı deneyin (örn: "Fenerbahce" yerine "Fenerbahce")
+                - Kısa isim kullanın (örn: "Galatasaray" yerine "Gala" veya "GS")
+                - Farklı varyasyonlar deneyin (örn: "Man United", "Manchester United", "MUFC")
+                - Türkçe karakterler otomatik normalize edilir (ş→s, ğ→g, vb.)
+                
+                **🔍 Popüler takımlar:** Galatasaray, Fenerbahce, Besiktas, Barcelona, Real Madrid, Arsenal, Liverpool, Bayern
+                """)
         
         # Seçili maç varsa analiz yap
         if 'selected_fixture_comprehensive' in st.session_state or selected_fixture_id:
@@ -7482,5 +8654,411 @@ def display_professional_analysis():
                     st.session_state.pop('show_static_analysis', False)
                     st.experimental_rerun()
 
+def display_heatmap_page():
+    """Oyuncu Isı Haritası Sayfası"""
+    from player_heatmap import PlayerHeatmap
+    
+    st.title("🔥 Oyuncu Isı Haritası")
+    st.markdown("### Oyuncu pozisyon verilerini görselleştirin")
+    
+    # Modül import
+    heatmap_generator = PlayerHeatmap()
+    
+    # Demo / Gerçek Veri Seçimi
+    data_mode = st.radio("Veri Modu", ["🎮 Demo Verisi", "📊 Gerçek Maç Verisi"], horizontal=True)
+    
+    if data_mode == "🎮 Demo Verisi":
+        st.info("🎮 Demo modunda test verileri kullanılıyor")
+        
+        col1, col2 = st.columns([2, 1])
+        
+        with col1:
+            player_name = st.text_input("Oyuncu Adı", value="Icardi")
+            team_name = st.text_input("Takım Adı", value="Galatasaray")
+        
+        with col2:
+            player_position = st.selectbox("Oyuncu Pozisyonu", 
+                                          ["Forward", "Midfielder", "Defender", "Goalkeeper"])
+            num_points = st.slider("Veri Noktası Sayısı", 20, 100, 50)
+        
+        event_type = st.selectbox("Hareket Tipi", 
+                                 ["Tüm Hareketler", "Şutlar", "Paslar", "Dribling"])
+        
+        if st.button("🔥 Isı Haritası Oluştur", type="primary", use_container_width=True):
+            with st.spinner("Isı haritası oluşturuluyor..."):
+                # Mock pozisyonları oluştur
+                positions = heatmap_generator.generate_mock_positions(player_position, num_points)
+                
+                # Işı haritası oluştur
+                img_buffer = heatmap_generator.generate_heatmap(
+                    positions=positions,
+                    player_name=player_name,
+                    team_name=team_name,
+                    event_type=event_type
+                )
+                
+                # Göster
+                st.image(img_buffer, use_container_width=True)
+                
+                # İstatistikler
+                st.success(f"✅ {len(positions)} pozisyon verisi görselleştirildi")
+                
+                col1, col2, col3 = st.columns(3)
+                with col1:
+                    avg_x = sum(p[0] for p in positions) / len(positions)
+                    st.metric("Ortalama X Pozisyon", f"{avg_x:.1f}m")
+                with col2:
+                    avg_y = sum(p[1] for p in positions) / len(positions)
+                    st.metric("Ortalama Y Pozisyon", f"{avg_y:.1f}m")
+                with col3:
+                    st.metric("Veri Noktası", len(positions))
+    
+    else:
+        st.info("📊 Gerçek maç verileri henüz mevcut değil - Yakında eklenecek!")
+        st.markdown("""
+        **Gelecek Özellikler:**
+        - ✅ API'den gerçek oyuncu pozisyonları
+        - ✅ Maç bazlı isı haritaları  
+        - ✅ Birden fazla oyuncu karşılaştırma
+        - ✅ Takım isı haritaları
+        - ✅ Zaman bazlı animasyonlar
+        """)
+
+def display_momentum_page():
+    """Momentum Tracker Sayfası - Placeholder"""
+    st.title("📊 Momentum Tracker")
+    st.info("Bu özellik yakında eklenecek!")
+    st.markdown("**Momentum Tracker** maç içi momentum değişimlerini takip edecek.")
+
+def display_3d_visualization_page():
+    """3D Görselleştirme Sayfası"""
+    from pitch_3d_visualizer import Pitch3DVisualizer
+    
+    st.title("🎯 3D Saha Görselleştirme")
+    st.markdown("### İnteraktif 3D futbol sahası analizi")
+    
+    visualizer = Pitch3DVisualizer()
+    
+    # Görselleştirme tipi seçimi
+    viz_type = st.selectbox(
+        "Görselleştirme Tipi",
+        ["🔗 Pas Ağı", "⚔️ Hücum Bölgeleri", "⚽ Şut Haritası", "🎨 Komple Analiz"]
+    )
+    
+    col1, col2 = st.columns([3, 1])
+    
+    with col2:
+        st.markdown("#### ⚙️ Ayarlar")
+        
+        if viz_type in ["🔗 Pas Ağı", "🎨 Komple Analiz"]:
+            num_players = st.slider("Oyuncu Sayısı", 5, 11, 11)
+            team_color = st.color_picker("Takım Rengi", "#FF6B6B")
+        
+        if viz_type in ["⚔️ Hücum Bölgeleri", "🎨 Komple Analiz"]:
+            num_zones = st.slider("Hücum Bölgesi", 10, 50, 30)
+        
+        if viz_type in ["⚽ Şut Haritası", "🎨 Komple Analiz"]:
+            num_shots = st.slider("Şut Sayısı", 5, 25, 15)
+    
+    with col1:
+        if st.button("🎯 3D Görselleştir", type="primary", use_container_width=True):
+            with st.spinner("3D model oluşturuluyor..."):
+                
+                passes = None
+                player_positions = None
+                attack_zones = None
+                shots = None
+                
+                # Veri hazırla
+                if viz_type == "🔗 Pas Ağı":
+                    passes, player_positions = visualizer.generate_mock_pass_network(num_players)
+                    title = f"3D Pas Ağı - {num_players} Oyuncu"
+                    
+                elif viz_type == "⚔️ Hücum Bölgeleri":
+                    attack_zones = visualizer.generate_mock_attack_zones(num_zones)
+                    title = f"3D Hücum Bölgeleri - {num_zones} Bölge"
+                    
+                elif viz_type == "⚽ Şut Haritası":
+                    shots = visualizer.generate_mock_shots(num_shots)
+                    title = f"3D Şut Haritası - {num_shots} Şut"
+                    
+                else:  # Komple Analiz
+                    passes, player_positions = visualizer.generate_mock_pass_network(num_players)
+                    attack_zones = visualizer.generate_mock_attack_zones(num_zones)
+                    shots = visualizer.generate_mock_shots(num_shots)
+                    title = "3D Komple Maç Analizi"
+                
+                # 3D Figure oluştur
+                fig = visualizer.create_full_visualization(
+                    passes=passes,
+                    player_positions=player_positions,
+                    attack_zones=attack_zones,
+                    shots=shots,
+                    title=title
+                )
+                
+                # Plotly ile göster
+                st.plotly_chart(fig, use_container_width=True, config={
+                    'displayModeBar': True,
+                    'displaylogo': False,
+                    'modeBarButtonsToRemove': ['pan3d', 'select3d', 'lasso3d']
+                })
+                
+                # İstatistikler
+                st.success("✅ 3D görselleştirme tamamlandı")
+                
+                col_a, col_b, col_c, col_d = st.columns(4)
+                
+                with col_a:
+                    if passes:
+                        total_passes = sum(p['count'] for p in passes)
+                        st.metric("Toplam Pas", total_passes)
+                    else:
+                        st.metric("Toplam Pas", "-")
+                
+                with col_b:
+                    if player_positions:
+                        st.metric("Oyuncu Sayısı", len(player_positions))
+                    else:
+                        st.metric("Oyuncu Sayısı", "-")
+                
+                with col_c:
+                    if shots:
+                        goals = sum(1 for s in shots if s.get('goal', False))
+                        st.metric("Gol / Şut", f"{goals} / {len(shots)}")
+                    else:
+                        st.metric("Gol / Şut", "-")
+                
+                with col_d:
+                    if attack_zones:
+                        avg_intensity = sum(z[2] for z in attack_zones) / len(attack_zones)
+                        st.metric("Ort. Yoğunluk", f"{avg_intensity:.1f}")
+                    else:
+                        st.metric("Ort. Yoğunluk", "-")
+                
+                # Bilgilendirme
+                st.info("""
+                **💡 İnteraktif Kontroller:**
+                - 🖱️ **Fare ile Döndür**: Sol tuş ile 3D modeli döndürün
+                - 🔍 **Yakınlaştır**: Scroll ile zoom yapın
+                - 🎯 **Hover**: Noktaların üzerine gelin detay görün
+                - 📷 **Screenshot**: Sağ üst menüden indirin
+                """)
+        
+        else:
+            st.info("👆 Görselleştirme oluşturmak için butona tıklayın")
+            
+            # Örnek açıklamalar
+            st.markdown("---")
+            st.markdown("### 📋 Görselleştirme Tipleri")
+            
+            st.markdown("""
+            **🔗 Pas Ağı**
+            - Oyuncular arası pas ilişkileri
+            - Pas yoğunluğu kalınlık ile gösterilir
+            - 3D ark şeklinde paslar
+            
+            **⚔️ Hücum Bölgeleri**
+            - Rakip yarı sahada aktivite yoğunluğu
+            - Yükseklik = Yoğunluk
+            - Renk skalası ile görselleştirme
+            
+            **⚽ Şut Haritası**
+            - Goller yeşil ♦️, kaçanlar kırmızı ❌
+            - xG değeri nokta boyutunu belirler
+            - 3D yükseklik = xG değeri
+            
+            **🎨 Komple Analiz**
+            - Tüm elementler bir arada
+            - Kapsamlı maç analizi
+            - İnteraktif 3D deneyim
+            """)
+
+
+def display_performance_tracking_page():
+    """Performans Tracking Dashboard - Zaman içinde takım ve oyuncu performansı"""
+    from performance_tracker import PerformanceTracker
+    
+    st.markdown("### 📈 Performans Tracking Dashboard")
+    st.markdown("---")
+    
+    tracker = PerformanceTracker()
+    
+    # Sidebar ayarları
+    with st.sidebar:
+        st.markdown("#### ⚙️ Ayarlar")
+        
+        analysis_type = st.selectbox(
+            "Analiz Tipi",
+            ["🏆 Takım Formu", "👥 Takım Karşılaştırma", "👤 Oyuncu Gelişimi", "🎯 Momentum Analizi"]
+        )
+        
+        st.markdown("---")
+        
+        if analysis_type == "🏆 Takım Formu":
+            team_name = st.text_input("Takım Adı", "Galatasaray")
+            window_size = st.slider("Form Penceresi (Maç)", 3, 10, 5)
+            num_matches = st.slider("Gösterilecek Maç Sayısı", 10, 30, 20)
+            
+        elif analysis_type == "👤 Oyuncu Gelişimi":
+            player_name = st.text_input("Oyuncu Adı", "Mauro Icardi")
+            num_months = st.slider("Ay Sayısı", 3, 12, 6)
+    
+    # Ana içerik
+    if analysis_type == "🏆 Takım Formu":
+        col1, col2 = st.columns([2, 1])
+        
+        with col1:
+            st.markdown(f"#### 📊 {team_name} - Form Analizi")
+        
+        # Mock veri
+        matches = tracker.generate_mock_team_data(team_name, num_matches)
+        
+        # Form grafiği
+        form_fig = tracker.create_form_chart(team_name, matches, window_size)
+        st.plotly_chart(form_fig, use_container_width=True)
+        
+        # Seri görselleştirmesi
+        results = [m['result'] for m in matches]
+        streak_fig = tracker.create_streak_visualization(team_name, results)
+        st.plotly_chart(streak_fig, use_container_width=True)
+        
+        # İstatistikler
+        col1, col2, col3, col4 = st.columns(4)
+        
+        wins = results.count('W')
+        draws = results.count('D')
+        losses = results.count('L')
+        win_rate = (wins / len(results)) * 100
+        
+        with col1:
+            st.metric("🏆 Galibiyet", f"{wins}/{len(results)}", f"{win_rate:.1f}%")
+        with col2:
+            st.metric("🤝 Beraberlik", f"{draws}/{len(results)}")
+        with col3:
+            st.metric("❌ Mağlubiyet", f"{losses}/{len(results)}")
+        with col4:
+            avg_goals = sum(m['goals_for'] for m in matches) / len(matches)
+            st.metric("⚽ Avg Gol", f"{avg_goals:.1f}")
+    
+    elif analysis_type == "👥 Takım Karşılaştırma":
+        st.markdown("#### 🔄 Takım Karşılaştırma")
+        
+        # Mock karşılaştırma
+        team_stats = tracker.generate_mock_team_comparison()
+        
+        # Radar chart
+        comparison_fig = tracker.create_comparison_chart(team_stats)
+        st.plotly_chart(comparison_fig, use_container_width=True)
+        
+        # Detaylı tablo
+        st.markdown("##### 📋 Detaylı İstatistikler")
+        df = pd.DataFrame(team_stats).T
+        df = df.round(1)
+        df.columns = ['Goller', 'xG', 'Şutlar', 'İsabetli Şut', 'Pas %', 'Tehlikeli Atak']
+        st.dataframe(df, use_container_width=True)
+    
+    elif analysis_type == "👤 Oyuncu Gelişimi":
+        st.markdown(f"#### 👤 {player_name} - Performans Gelişimi")
+        
+        # Mock oyuncu verisi
+        player_stats = tracker.generate_mock_player_stats(player_name, num_months)
+        
+        # Gelişim grafiği
+        progression_fig = tracker.create_player_progression(player_name, player_stats)
+        st.plotly_chart(progression_fig, use_container_width=True)
+        
+        # Özet istatistikler
+        col1, col2, col3, col4 = st.columns(4)
+        
+        total_goals = sum(s['goals'] for s in player_stats)
+        total_assists = sum(s['assists'] for s in player_stats)
+        avg_shot = sum(s['shot_accuracy'] for s in player_stats) / len(player_stats)
+        avg_pass = sum(s['pass_accuracy'] for s in player_stats) / len(player_stats)
+        
+        with col1:
+            st.metric("⚽ Toplam Gol", total_goals)
+        with col2:
+            st.metric("🎯 Toplam Asist", total_assists)
+        with col3:
+            st.metric("📊 Avg Şut %", f"{avg_shot:.1f}%")
+        with col4:
+            st.metric("📈 Avg Pas %", f"{avg_pass:.1f}%")
+    
+    elif analysis_type == "🎯 Momentum Analizi":
+        st.markdown("#### 🎯 Momentum Analizi")
+        
+        col1, col2 = st.columns(2)
+        
+        teams = ['Galatasaray', 'Fenerbahçe']
+        
+        for idx, team in enumerate(teams):
+            matches = tracker.generate_mock_team_data(team, 10)
+            results = [m['result'] for m in matches]
+            
+            # Momentum skoru
+            momentum = tracker.calculate_momentum_score(results)
+            
+            with [col1, col2][idx]:
+                st.markdown(f"##### {team}")
+                
+                # Gauge
+                gauge_fig = tracker.create_momentum_gauge(team, momentum)
+                st.plotly_chart(gauge_fig, use_container_width=True)
+                
+                # Son 5 maç
+                st.markdown("**Son 5 Maç:**")
+                recent = results[-5:]
+                result_colors = {'W': '🟢', 'D': '🟡', 'L': '🔴'}
+                result_text = ' '.join([result_colors[r] for r in recent])
+                st.markdown(f"<h3 style='text-align: center;'>{result_text}</h3>", unsafe_allow_html=True)
+        
+        # Karşılaştırma
+        st.markdown("---")
+        st.markdown("##### 📊 Momentum Karşılaştırması")
+        
+        momentum_data = []
+        for team in teams:
+            matches = tracker.generate_mock_team_data(team, 10)
+            results = [m['result'] for m in matches]
+            momentum = tracker.calculate_momentum_score(results)
+            momentum_data.append({'Takım': team, 'Momentum': momentum})
+        
+        df = pd.DataFrame(momentum_data)
+        fig = px.bar(df, x='Takım', y='Momentum', color='Momentum',
+                    color_continuous_scale=['red', 'yellow', 'green'],
+                    range_color=[0, 100])
+        fig.update_layout(template='plotly_dark', height=300)
+        st.plotly_chart(fig, use_container_width=True)
+    
+    # Kullanım kılavuzu
+    with st.expander("ℹ️ Nasıl Kullanılır?"):
+        st.markdown("""
+        ### 📖 Performans Tracking Rehberi
+        
+        **🏆 Takım Formu:**
+        - Son N maçta takım performansını analiz eder
+        - Form trendi, gol ortalamaları ve seri görselleştirilir
+        - Form penceresi (3-10 maç) ayarlanabilir
+        
+        **👥 Takım Karşılaştırma:**
+        - Birden fazla takımı radar chart ile karşılaştırır
+        - Goller, xG, şutlar, pas başarısı gibi metrikleri içerir
+        
+        **👤 Oyuncu Gelişimi:**
+        - Oyuncunun zaman içindeki performans gelişimini gösterir
+        - Gol, asist, şut isabeti, pas başarısı trendleri
+        
+        **🎯 Momentum Analizi:**
+        - Takımların güncel momentum skorunu hesaplar
+        - Son maçlar daha ağırlıklı değerlendirilir (0-100 skala)
+        - İki takımı momentum bazında karşılaştırır
+        
+        **Not:** Demo modunda çalışır. Gerçek maç verileriyle güncellenebilir.
+        """)
+    
+    # Demo uyarısı
+    st.info("🔄 **Demo Modu:** Şu anda mock verilerle çalışıyor. API entegrasyonu sonrası gerçek verilerle güncellenecek.")
+
 if __name__ == "__main__":
-    main()
+    main() 
