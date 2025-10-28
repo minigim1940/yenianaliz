@@ -1397,6 +1397,10 @@ def display_model_predictions_only(analysis, team_names):
     with col3:
         st.metric(f"✈️ {team_names['b']} Kazanır", f"{probs.get('win_b', 0):.1f}%")
     
+    # Varsayılan değerler
+    detailed_odds = None
+    model_params = st.session_state.get('model_params', {})
+    
     # Detaylı oranları işle
     processed_detailed_odds = analysis_logic.process_detailed_odds(detailed_odds) if detailed_odds else {}
     
