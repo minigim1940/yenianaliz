@@ -1,0 +1,553 @@
+{
+  "matches": [
+    {
+      "date": "2025-10-28T22:28:11.427369",
+      "team_a_id": 47,
+      "team_b_id": 48,
+      "league_id": 39,
+      "prediction": {
+        "win_a": 55.0,
+        "draw": 25.0,
+        "win_b": 20.0
+      },
+      "actual_result": {
+        "home_score": 2,
+        "away_score": 1,
+        "winner": "home"
+      },
+      "model_factors": {
+        "form_factor_a": 1.15,
+        "form_factor_b": 0.85,
+        "elo_diff": 51,
+        "home_advantage": 1.08
+      },
+      "is_correct": true,
+      "confidence": 30.0
+    },
+    {
+      "date": "2025-10-28T22:28:11.433370",
+      "team_a_id": 40,
+      "team_b_id": 49,
+      "league_id": 39,
+      "prediction": {
+        "win_a": 60,
+        "draw": 25,
+        "win_b": 15
+      },
+      "actual_result": {
+        "home_score": 2,
+        "away_score": 1,
+        "winner": "home"
+      },
+      "model_factors": {
+        "form_factor_a": 1.0399283514330602,
+        "form_factor_b": 1.1085021409044271,
+        "elo_diff": -139,
+        "home_advantage": 1.08
+      },
+      "is_correct": true,
+      "confidence": 35
+    },
+    {
+      "date": "2025-10-28T22:28:11.434889",
+      "team_a_id": 50,
+      "team_b_id": 42,
+      "league_id": 39,
+      "prediction": {
+        "win_a": 60,
+        "draw": 25,
+        "win_b": 15
+      },
+      "actual_result": {
+        "home_score": 3,
+        "away_score": 1,
+        "winner": "home"
+      },
+      "model_factors": {
+        "form_factor_a": 0.9536508065039647,
+        "form_factor_b": 1.14140573912914,
+        "elo_diff": 70,
+        "home_advantage": 1.08
+      },
+      "is_correct": true,
+      "confidence": 35
+    },
+    {
+      "date": "2025-10-28T22:28:11.435879",
+      "team_a_id": 47,
+      "team_b_id": 48,
+      "league_id": 39,
+      "prediction": {
+        "win_a": 60,
+        "draw": 25,
+        "win_b": 15
+      },
+      "actual_result": {
+        "home_score": 2,
+        "away_score": 0,
+        "winner": "home"
+      },
+      "model_factors": {
+        "form_factor_a": 1.1396986039679926,
+        "form_factor_b": 1.0472507700175924,
+        "elo_diff": 104,
+        "home_advantage": 1.08
+      },
+      "is_correct": true,
+      "confidence": 35
+    },
+    {
+      "date": "2025-10-28T22:28:11.436879",
+      "team_a_id": 33,
+      "team_b_id": 44,
+      "league_id": 39,
+      "prediction": {
+        "win_a": 30,
+        "draw": 40,
+        "win_b": 30
+      },
+      "actual_result": {
+        "home_score": 1,
+        "away_score": 1,
+        "winner": "draw"
+      },
+      "model_factors": {
+        "form_factor_a": 1.0979191731845923,
+        "form_factor_b": 1.0147511206383184,
+        "elo_diff": -115,
+        "home_advantage": 1.08
+      },
+      "is_correct": true,
+      "confidence": 10
+    },
+    {
+      "date": "2025-10-28T22:28:11.437879",
+      "team_a_id": 49,
+      "team_b_id": 40,
+      "league_id": 39,
+      "prediction": {
+        "win_a": 50,
+        "draw": 25,
+        "win_b": 25
+      },
+      "actual_result": {
+        "home_score": 0,
+        "away_score": 2,
+        "winner": "away"
+      },
+      "model_factors": {
+        "form_factor_a": 1.0823397462250282,
+        "form_factor_b": 1.0912660489389705,
+        "elo_diff": -83,
+        "home_advantage": 1.08
+      },
+      "is_correct": false,
+      "confidence": 25
+    },
+    {
+      "date": "2025-10-28T22:28:11.437879",
+      "team_a_id": 42,
+      "team_b_id": 50,
+      "league_id": 39,
+      "prediction": {
+        "win_a": 50,
+        "draw": 25,
+        "win_b": 25
+      },
+      "actual_result": {
+        "home_score": 1,
+        "away_score": 3,
+        "winner": "away"
+      },
+      "model_factors": {
+        "form_factor_a": 1.131395724678877,
+        "form_factor_b": 1.0237096193281652,
+        "elo_diff": 52,
+        "home_advantage": 1.08
+      },
+      "is_correct": false,
+      "confidence": 25
+    },
+    {
+      "date": "2025-10-28T22:28:11.438879",
+      "team_a_id": 48,
+      "team_b_id": 47,
+      "league_id": 39,
+      "prediction": {
+        "win_a": 20,
+        "draw": 25,
+        "win_b": 55
+      },
+      "actual_result": {
+        "home_score": 0,
+        "away_score": 1,
+        "winner": "away"
+      },
+      "model_factors": {
+        "form_factor_a": 1.103956822550696,
+        "form_factor_b": 1.1274922036122632,
+        "elo_diff": -46,
+        "home_advantage": 1.08
+      },
+      "is_correct": true,
+      "confidence": 30
+    },
+    {
+      "date": "2025-10-28T22:28:11.439880",
+      "team_a_id": 34,
+      "team_b_id": 39,
+      "league_id": 39,
+      "prediction": {
+        "win_a": 30,
+        "draw": 40,
+        "win_b": 30
+      },
+      "actual_result": {
+        "home_score": 2,
+        "away_score": 2,
+        "winner": "draw"
+      },
+      "model_factors": {
+        "form_factor_a": 0.9907790521196231,
+        "form_factor_b": 1.1001029207368846,
+        "elo_diff": -37,
+        "home_advantage": 1.08
+      },
+      "is_correct": true,
+      "confidence": 10
+    }
+  ],
+  "team_patterns": {
+    "47": {
+      "matches_played": 3,
+      "home_performance": {
+        "wins": 2,
+        "draws": 0,
+        "losses": 0,
+        "total": 2
+      },
+      "away_performance": {
+        "wins": 1,
+        "draws": 0,
+        "losses": 0,
+        "total": 1
+      },
+      "goal_patterns": {
+        "avg_scored": 0.0,
+        "avg_conceded": 0.0
+      },
+      "form_effectiveness": {
+        "good_form_wins": 0,
+        "bad_form_losses": 0
+      },
+      "vs_strong_teams": {
+        "wins": 0,
+        "total": 0
+      },
+      "vs_weak_teams": {
+        "wins": 0,
+        "total": 0
+      }
+    },
+    "48": {
+      "matches_played": 3,
+      "home_performance": {
+        "wins": 0,
+        "draws": 0,
+        "losses": 1,
+        "total": 1
+      },
+      "away_performance": {
+        "wins": 0,
+        "draws": 0,
+        "losses": 2,
+        "total": 2
+      },
+      "goal_patterns": {
+        "avg_scored": 0.0,
+        "avg_conceded": 0.0
+      },
+      "form_effectiveness": {
+        "good_form_wins": 0,
+        "bad_form_losses": 0
+      },
+      "vs_strong_teams": {
+        "wins": 0,
+        "total": 0
+      },
+      "vs_weak_teams": {
+        "wins": 0,
+        "total": 0
+      }
+    },
+    "40": {
+      "matches_played": 2,
+      "home_performance": {
+        "wins": 1,
+        "draws": 0,
+        "losses": 0,
+        "total": 1
+      },
+      "away_performance": {
+        "wins": 1,
+        "draws": 0,
+        "losses": 0,
+        "total": 1
+      },
+      "goal_patterns": {
+        "avg_scored": 0.0,
+        "avg_conceded": 0.0
+      },
+      "form_effectiveness": {
+        "good_form_wins": 0,
+        "bad_form_losses": 0
+      },
+      "vs_strong_teams": {
+        "wins": 0,
+        "total": 0
+      },
+      "vs_weak_teams": {
+        "wins": 0,
+        "total": 0
+      }
+    },
+    "49": {
+      "matches_played": 2,
+      "home_performance": {
+        "wins": 0,
+        "draws": 0,
+        "losses": 1,
+        "total": 1
+      },
+      "away_performance": {
+        "wins": 0,
+        "draws": 0,
+        "losses": 1,
+        "total": 1
+      },
+      "goal_patterns": {
+        "avg_scored": 0.0,
+        "avg_conceded": 0.0
+      },
+      "form_effectiveness": {
+        "good_form_wins": 0,
+        "bad_form_losses": 0
+      },
+      "vs_strong_teams": {
+        "wins": 0,
+        "total": 0
+      },
+      "vs_weak_teams": {
+        "wins": 0,
+        "total": 0
+      }
+    },
+    "50": {
+      "matches_played": 2,
+      "home_performance": {
+        "wins": 1,
+        "draws": 0,
+        "losses": 0,
+        "total": 1
+      },
+      "away_performance": {
+        "wins": 1,
+        "draws": 0,
+        "losses": 0,
+        "total": 1
+      },
+      "goal_patterns": {
+        "avg_scored": 0.0,
+        "avg_conceded": 0.0
+      },
+      "form_effectiveness": {
+        "good_form_wins": 0,
+        "bad_form_losses": 0
+      },
+      "vs_strong_teams": {
+        "wins": 0,
+        "total": 0
+      },
+      "vs_weak_teams": {
+        "wins": 0,
+        "total": 0
+      }
+    },
+    "42": {
+      "matches_played": 2,
+      "home_performance": {
+        "wins": 0,
+        "draws": 0,
+        "losses": 1,
+        "total": 1
+      },
+      "away_performance": {
+        "wins": 0,
+        "draws": 0,
+        "losses": 1,
+        "total": 1
+      },
+      "goal_patterns": {
+        "avg_scored": 0.0,
+        "avg_conceded": 0.0
+      },
+      "form_effectiveness": {
+        "good_form_wins": 0,
+        "bad_form_losses": 0
+      },
+      "vs_strong_teams": {
+        "wins": 0,
+        "total": 0
+      },
+      "vs_weak_teams": {
+        "wins": 0,
+        "total": 0
+      }
+    },
+    "33": {
+      "matches_played": 1,
+      "home_performance": {
+        "wins": 0,
+        "draws": 1,
+        "losses": 0,
+        "total": 1
+      },
+      "away_performance": {
+        "wins": 0,
+        "draws": 0,
+        "losses": 0,
+        "total": 0
+      },
+      "goal_patterns": {
+        "avg_scored": 0.0,
+        "avg_conceded": 0.0
+      },
+      "form_effectiveness": {
+        "good_form_wins": 0,
+        "bad_form_losses": 0
+      },
+      "vs_strong_teams": {
+        "wins": 0,
+        "total": 0
+      },
+      "vs_weak_teams": {
+        "wins": 0,
+        "total": 0
+      }
+    },
+    "44": {
+      "matches_played": 1,
+      "home_performance": {
+        "wins": 0,
+        "draws": 0,
+        "losses": 0,
+        "total": 0
+      },
+      "away_performance": {
+        "wins": 0,
+        "draws": 1,
+        "losses": 0,
+        "total": 1
+      },
+      "goal_patterns": {
+        "avg_scored": 0.0,
+        "avg_conceded": 0.0
+      },
+      "form_effectiveness": {
+        "good_form_wins": 0,
+        "bad_form_losses": 0
+      },
+      "vs_strong_teams": {
+        "wins": 0,
+        "total": 0
+      },
+      "vs_weak_teams": {
+        "wins": 0,
+        "total": 0
+      }
+    },
+    "34": {
+      "matches_played": 1,
+      "home_performance": {
+        "wins": 0,
+        "draws": 1,
+        "losses": 0,
+        "total": 1
+      },
+      "away_performance": {
+        "wins": 0,
+        "draws": 0,
+        "losses": 0,
+        "total": 0
+      },
+      "goal_patterns": {
+        "avg_scored": 0.0,
+        "avg_conceded": 0.0
+      },
+      "form_effectiveness": {
+        "good_form_wins": 0,
+        "bad_form_losses": 0
+      },
+      "vs_strong_teams": {
+        "wins": 0,
+        "total": 0
+      },
+      "vs_weak_teams": {
+        "wins": 0,
+        "total": 0
+      }
+    },
+    "39": {
+      "matches_played": 1,
+      "home_performance": {
+        "wins": 0,
+        "draws": 0,
+        "losses": 0,
+        "total": 0
+      },
+      "away_performance": {
+        "wins": 0,
+        "draws": 1,
+        "losses": 0,
+        "total": 1
+      },
+      "goal_patterns": {
+        "avg_scored": 0.0,
+        "avg_conceded": 0.0
+      },
+      "form_effectiveness": {
+        "good_form_wins": 0,
+        "bad_form_losses": 0
+      },
+      "vs_strong_teams": {
+        "wins": 0,
+        "total": 0
+      },
+      "vs_weak_teams": {
+        "wins": 0,
+        "total": 0
+      }
+    }
+  },
+  "league_patterns": {
+    "39": {
+      "matches_analyzed": 9,
+      "home_advantage": {
+        "wins": 4,
+        "total": 9
+      },
+      "high_scoring": {
+        "over_2_5": 5,
+        "total": 9
+      },
+      "upsets": {
+        "count": 0,
+        "total_favorites": 0
+      }
+    }
+  },
+  "success_rate": 77.77777777777779,
+  "total_predictions": 9,
+  "correct_predictions": 7,
+  "last_update": "2025-10-28T22:28:11.439880"
+}

@@ -38,6 +38,15 @@ def render_betting_page():
         **Value Bet**, bahisçinin sunduğu oranın gerçek olasılıktan **daha yüksek** olduğu bahislerdir. 
         Uzun vadede kar garantisi sunan matematiksel bir avantajdır.
         
+        #### 🆕 Yeni Bahis Türleri Eklendi!
+        
+        🕐 **İlk Yarı Sonuçları:** İlk 45 dakikadaki sonuç (1Y - Ev Sahibi/Beraberlik/Deplasman)
+        
+        ⚽ **Alt/Üst Bahisleri:**
+        - **2.5 Alt/Üst:** Maçta toplam 3+ gol atılır mı?
+        
+        💡 **Avantaj:** Farklı pazarlarda daha fazla value bet fırsatı!
+        
         #### 🎯 Temel Kavramlar
         
         **1. Expected Value (EV) - Beklenen Değer**
@@ -73,24 +82,25 @@ def render_betting_page():
         **TAB 1: Tek Maç Analizi** 🔍
         
         1. **Model Tahminlerini Girin:**
-           - Ev Sahibi Kazanır: %45
-           - Beraberlik: %30
-           - Deplasman Kazanır: %25
+           - **Maç Sonucu (90 dk):** Ev Sahibi %45, Beraberlik %30, Deplasman %25
+           - **İlk Yarı Sonucu:** 1Y Ev Sahibi %35, 1Y Beraberlik %45, 1Y Deplasman %20  
+           - **Alt/Üst Tahminleri:** 2.5 Üst %55
         
         2. **Bahisçi Oranlarını Girin:**
-           - Ev Sahibi: 2.10
-           - Beraberlik: 3.40
-           - Deplasman: 3.80
+           - **Ana Sonuç:** Ev Sahibi 2.10, Beraberlik 3.40, Deplasman 3.80
+           - **İlk Yarı:** 1Y Ev Sahibi 2.80, 1Y Beraberlik 2.20, 1Y Deplasman 4.50
+           - **Alt/Üst:** 2.5 Üst 1.85, 2.5 Alt 1.95
         
         3. **Analiz Et:**
-           - Value betler otomatik bulunur
+           - **Tüm bahis türlerinde** value betler aranır
            - EV, Value %, Kelly stake hesaplanır
            - Rating verilir (⭐⭐⭐)
+           - **Kategori bazlı** karşılaştırma grafiği
         
         4. **Kararı Verin:**
            - EV %5+: Bahis yapılabilir
            - Value %10+: İyi fırsat
-           - Risk seviyesini kontrol edin
+           - **Farklı bahis türlerinden** en iyiyi seç
         
         **TAB 2: Çoklu Bahisçi Karşılaştırma** 📊
         
@@ -256,6 +266,16 @@ def render_single_match_analysis(bankroll, min_value, min_ev, kelly_fraction):
         home_prob = st.slider("Ev Sahibi Galibiyeti", 0, 100, 45) / 100
         draw_prob = st.slider("Beraberlik", 0, 100, 30) / 100
         away_prob = st.slider("Deplasman Galibiyeti", 0, 100, 25) / 100
+        
+        # İlk yarı tahminleri
+        st.markdown("##### 🕐 İlk Yarı Tahminleri")
+        ht_home_prob = st.slider("1Y - Ev Sahibi", 0, 100, 35) / 100
+        ht_draw_prob = st.slider("1Y - Beraberlik", 0, 100, 45) / 100
+        ht_away_prob = st.slider("1Y - Deplasman", 0, 100, 20) / 100
+        
+        # Alt/Üst tahminleri (sadece 2.5)
+        st.markdown("##### ⚽ Gol Tahminleri")
+        over_2_5_prob = st.slider("2.5 Üst Olasılık", 0, 100, 55) / 100
     
     # Olasılık kontrolü
     total_prob = home_prob + draw_prob + away_prob
@@ -265,6 +285,8 @@ def render_single_match_analysis(bankroll, min_value, min_ev, kelly_fraction):
     st.markdown("---")
     st.markdown("### 💵 Bahisçi Oranları")
     
+    # Ana maç sonucu
+    st.markdown("#### 🏆 Maç Sonucu (90 dk)")
     col1, col2, col3 = st.columns(3)
     
     with col1:
@@ -276,19 +298,58 @@ def render_single_match_analysis(bankroll, min_value, min_ev, kelly_fraction):
     with col3:
         away_odds = st.number_input("✈️ Deplasman", min_value=1.01, max_value=50.0, value=3.80, step=0.05)
     
+    # İlk yarı sonucu
+    st.markdown("#### 🕐 İlk Yarı Sonucu")
+    ht_col1, ht_col2, ht_col3 = st.columns(3)
+    
+    with ht_col1:
+        ht_home_odds = st.number_input("🏠 1Y - Ev Sahibi", min_value=1.01, max_value=50.0, value=2.80, step=0.05, key="ht_home")
+    
+    with ht_col2:
+        ht_draw_odds = st.number_input("🤝 1Y - Beraberlik", min_value=1.01, max_value=50.0, value=2.20, step=0.05, key="ht_draw")
+    
+    with ht_col3:
+        ht_away_odds = st.number_input("✈️ 1Y - Deplasman", min_value=1.01, max_value=50.0, value=4.50, step=0.05, key="ht_away")
+    
+    # Alt/Üst bahisleri (sadece 2.5)
+    st.markdown("#### ⚽ Alt/Üst Bahisleri")
+    ou_col1, ou_col2 = st.columns(2)
+    
+    with ou_col1:
+        over_2_5_odds = st.number_input("⬆️ 2.5 Üst", min_value=1.01, max_value=50.0, value=1.85, step=0.05, key="over_2_5")
+    
+    with ou_col2:
+        under_2_5_odds = st.number_input("⬇️ 2.5 Alt", min_value=1.01, max_value=50.0, value=1.95, step=0.05, key="under_2_5")
+    
     if st.button("🔍 Analiz Et", type="primary", use_container_width=True):
-        # BettingOdds oluştur
+        # BettingOdds oluştur (yeni alanlarla)
         betting_odds = BettingOdds(
             home_win=home_odds,
             draw=draw_odds,
-            away_win=away_odds
+            away_win=away_odds,
+            # İlk yarı oranları
+            ht_home_win=ht_home_odds,
+            ht_draw=ht_draw_odds,
+            ht_away_win=ht_away_odds,
+            # Alt/üst oranları (sadece 2.5)
+            over_2_5=over_2_5_odds,
+            under_2_5=under_2_5_odds
         )
         
-        # Model tahminleri
+        # Model tahminleri (yeni alanlarla)
         true_probs = {
+            # Maç sonucu
             'home_win': home_prob,
             'draw': draw_prob,
-            'away_win': away_prob
+            'away_win': away_prob,
+            # İlk yarı
+            'ht_home_win': ht_home_prob,
+            'ht_draw': ht_draw_prob,
+            'ht_away_win': ht_away_prob,
+            # Alt/üst (sadece 2.5)
+            'over_2_5': over_2_5_prob,
+            'under_2_5': 1 - over_2_5_prob,  # Alt = 1 - Üst
+            'under_3_5': 1 - over_3_5_prob
         }
         
         # Karşılaştırma

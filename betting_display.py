@@ -101,22 +101,79 @@ def display_odds_comparison(true_probs: Dict[str, float], betting_odds):
     """Gerçek olasılık vs Bahisçi oranları karşılaştırma"""
     st.markdown("### 📊 Olasılık Karşılaştırması")
     
-    # Veriyi hazırla
-    outcomes = ['Ev Sahibi', 'Beraberlik', 'Deplasman']
-    true_percentages = [
-        true_probs.get('home_win', 0) * 100,
-        true_probs.get('draw', 0) * 100,
-        true_probs.get('away_win', 0) * 100
-    ]
+    # Tabs for different betting types
+    tab1, tab2, tab3 = st.tabs(["🏆 Maç Sonucu", "🕐 İlk Yarı", "⚽ Alt/Üst"])
     
-    implied_probs = betting_odds.get_implied_probabilities()
-    implied_percentages = [
-        implied_probs['home_win'] * 100,
-        implied_probs['draw'] * 100,
-        implied_probs['away_win'] * 100
-    ]
+    with tab1:
+        # Ana maç sonucu
+        outcomes = ['Ev Sahibi', 'Beraberlik', 'Deplasman']
+        true_percentages = [
+            true_probs.get('home_win', 0) * 100,
+            true_probs.get('draw', 0) * 100,
+            true_probs.get('away_win', 0) * 100
+        ]
+        
+        implied_probs = betting_odds.get_implied_probabilities()
+        implied_percentages = [
+            implied_probs['home_win'] * 100,
+            implied_probs['draw'] * 100,
+            implied_probs['away_win'] * 100
+        ]
+        
+        _create_comparison_chart("Maç Sonucu - Model vs Bahisçi", outcomes, true_percentages, implied_percentages)
+        
+        # Margin bilgisi
+        _display_margin_info(betting_odds, implied_percentages, true_percentages)
     
-    # Grafik
+    with tab2:
+        # İlk yarı karşılaştırması
+        if betting_odds.ht_home_win > 1.0:  # İlk yarı oranları varsa
+            ht_outcomes = ['1Y - Ev Sahibi', '1Y - Beraberlik', '1Y - Deplasman']
+            ht_true_percentages = [
+                true_probs.get('ht_home_win', 0) * 100,
+                true_probs.get('ht_draw', 0) * 100,
+                true_probs.get('ht_away_win', 0) * 100
+            ]
+            
+            ht_implied_percentages = [
+                (1/betting_odds.ht_home_win) * 100 if betting_odds.ht_home_win > 0 else 0,
+                (1/betting_odds.ht_draw) * 100 if betting_odds.ht_draw > 0 else 0,
+                (1/betting_odds.ht_away_win) * 100 if betting_odds.ht_away_win > 0 else 0
+            ]
+            
+            _create_comparison_chart("İlk Yarı - Model vs Bahisçi", ht_outcomes, ht_true_percentages, ht_implied_percentages)
+        else:
+            st.info("İlk yarı oranları girilmemiş")
+    
+    with tab3:
+        # Alt/Üst karşılaştırması
+        if betting_odds.over_2_5 > 1.0:
+            ou_outcomes = ['2.5 Üst', '2.5 Alt', '1.5 Üst', '1.5 Alt', '3.5 Üst', '3.5 Alt']
+            ou_true_percentages = [
+                true_probs.get('over_2_5', 0) * 100,
+                true_probs.get('under_2_5', 0) * 100,
+                true_probs.get('over_1_5', 0) * 100,
+                true_probs.get('under_1_5', 0) * 100,
+                true_probs.get('over_3_5', 0) * 100,
+                true_probs.get('under_3_5', 0) * 100
+            ]
+            
+            ou_implied_percentages = [
+                (1/betting_odds.over_2_5) * 100 if betting_odds.over_2_5 > 0 else 0,
+                (1/betting_odds.under_2_5) * 100 if betting_odds.under_2_5 > 0 else 0,
+                (1/betting_odds.over_1_5) * 100 if betting_odds.over_1_5 > 0 else 0,
+                (1/betting_odds.under_1_5) * 100 if betting_odds.under_1_5 > 0 else 0,
+                (1/betting_odds.over_3_5) * 100 if betting_odds.over_3_5 > 0 else 0,
+                (1/betting_odds.under_3_5) * 100 if betting_odds.under_3_5 > 0 else 0
+            ]
+            
+            _create_comparison_chart("Alt/Üst - Model vs Bahisçi", ou_outcomes, ou_true_percentages, ou_implied_percentages)
+        else:
+            st.info("Alt/Üst oranları girilmemiş")
+
+
+def _create_comparison_chart(title: str, outcomes: List[str], true_percentages: List[float], implied_percentages: List[float]):
+    """Karşılaştırma grafiği oluştur"""
     fig = go.Figure()
     
     fig.add_trace(go.Bar(
@@ -138,17 +195,19 @@ def display_odds_comparison(true_probs: Dict[str, float], betting_odds):
     ))
     
     fig.update_layout(
-        title='Model Tahmini vs Bahisçi Oranları',
+        title=title,
         xaxis_title='',
         yaxis_title='Olasılık (%)',
         barmode='group',
         height=400,
-        yaxis=dict(range=[0, 100])
+        yaxis=dict(range=[0, max(max(true_percentages), max(implied_percentages)) * 1.1])
     )
     
     st.plotly_chart(fig, use_container_width=True)
-    
-    # Margin bilgisi
+
+
+def _display_margin_info(betting_odds, implied_percentages: List[float], true_percentages: List[float]):
+    """Margin bilgilerini göster"""
     margin = betting_odds.get_margin()
     
     col1, col2, col3 = st.columns(3)

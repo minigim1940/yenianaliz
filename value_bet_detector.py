@@ -17,6 +17,15 @@ class BettingOdds:
     away_win: float
     bookmaker: str = "Unknown"
     
+    # İlk Yarı Sonuçları
+    ht_home_win: float = 0.0  # İlk yarı ev sahibi kazanır
+    ht_draw: float = 0.0      # İlk yarı beraberlik
+    ht_away_win: float = 0.0  # İlk yarı deplasman kazanır
+    
+    # Alt/Üst Bahisleri (sadece 2.5)
+    over_2_5: float = 0.0     # 2.5 üst
+    under_2_5: float = 0.0    # 2.5 alt
+    
     def get_implied_probabilities(self) -> Dict[str, float]:
         """Oran üzerinden implied probability hesapla"""
         return {
@@ -160,12 +169,27 @@ class ValueBetDetector:
         """
         value_bets = []
         
-        # Her sonuç için kontrol et
+        # Maç Sonucu (90 dakika)
         outcomes = {
             'Ev Sahibi Kazanır': ('home_win', betting_odds.home_win),
             'Beraberlik': ('draw', betting_odds.draw),
             'Deplasman Kazanır': ('away_win', betting_odds.away_win)
         }
+        
+        # İlk Yarı Sonuçları (eğer odds varsa)
+        if betting_odds.ht_home_win > 1.0:
+            outcomes.update({
+                '1Y - Ev Sahibi': ('ht_home_win', betting_odds.ht_home_win),
+                '1Y - Beraberlik': ('ht_draw', betting_odds.ht_draw),
+                '1Y - Deplasman': ('ht_away_win', betting_odds.ht_away_win)
+            })
+        
+        # Alt/Üst Bahisleri (sadece 2.5)
+        if betting_odds.over_2_5 > 1.0:
+            outcomes.update({
+                '2.5 Üst': ('over_2_5', betting_odds.over_2_5),
+                '2.5 Alt': ('under_2_5', betting_odds.under_2_5)
+            })
         
         for outcome_name, (prob_key, odds) in outcomes.items():
             true_prob = true_probabilities.get(prob_key, 0)

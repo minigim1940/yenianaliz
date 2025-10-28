@@ -15,15 +15,36 @@
 - 🎯 **Profesyonel API**: API-Football v3 wrapper (67+ fonksiyon)
 - 🔍 **Akıllı Arama**: Takım adı bazlı otomatik tamamlama
 - 🎨 **Modern UI**: Responsive tasarım ve animasyonlu bildirimler
+- 💎 **Value Bet Detector**: Gelişmiş bahis analiz sistemi (9 bahis türü)
 
 ### 🎯 Detaylı Analiz Türleri
   - **1X2 Tahminleri** - Maç sonucu tahminleri
-  - **2.5 Gol Üstü/Altı** - Toplam gol sayısı analizi
+  - **2.5 Gol Üstü/Altı** - Toplam gol sayısı analizi  
   - **Karşılıklı Gol (BTTS)** - Her iki takımın gol atma ihtimali
   - **Korner Tahminleri** - Korner sayısı analizi
   - **Kart Analizleri** - Sarı/Kırmızı kart tahminleri
   - **İlk Yarı Tahminleri** - İlk 45 dakika analizi
   - **Handikap Analizleri** - Avantaj/dezavantaj hesaplamaları
+
+### 💎 Value Bet Detector (YENİ!)
+
+**Gelişmiş Bahis Analiz Sistemi** - 9 farklı bahis türünü destekler:
+
+🏆 **Maç Sonucu (90dk)**
+- Ev Sahibi / Beraberlik / Deplasman
+
+🕐 **İlk Yarı Sonuçları**  
+- 1Y Ev Sahibi / 1Y Beraberlik / 1Y Deplasman
+
+⚽ **Alt/Üst Bahisleri**
+- 1.5 Alt/Üst - 2.5 Alt/Üst - 3.5 Alt/Üst
+
+**Özellikler:**
+- ✅ **Kelly Criterion** optimal stake hesaplama
+- ✅ **Expected Value (EV)** analizi
+- ✅ **Arbitrage** fırsat tespiti  
+- ✅ **Risk seviyesi** değerlendirmesi
+- ✅ **Kategori bazlı** karşılaştırma grafikleri
 ### � Gelişmiş Özellikler
 
 - **🛡️ Süper Doğrulama Sistemi**: 

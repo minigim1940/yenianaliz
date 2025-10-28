@@ -7,6 +7,21 @@ from datetime import datetime
 import api_utils
 import elo_utils
 
+# Machine Learning sistemi
+try:
+    from ml_predictor import ml_system
+    ML_AVAILABLE = True
+except ImportError:
+    ML_AVAILABLE = False
+    class DummyMLSystem:
+        def get_team_learning_adjustment(self, *args, **kwargs):
+            return {"attack_adj": 1.0, "defense_adj": 1.0, "confidence_adj": 1.0}
+        def get_league_learning_adjustment(self, *args, **kwargs):
+            return {"home_advantage_adj": 1.0, "goal_expectancy_adj": 1.0}
+        def get_prediction_confidence_multiplier(self, *args, **kwargs):
+            return 1.0
+    ml_system = DummyMLSystem()
+
 # Streamlit compatibility check
 try:
     import streamlit as st
@@ -1003,7 +1018,11 @@ def poisson_pmf(l, k):
 
 def calculate_match_probabilities(s_a: float, s_b: float) -> Dict[str, float]:
     limits = range(11)
-    accum = {'over': 0.0, 'btts': 0.0, 'win_a': 0.0, 'draw': 0.0, 'over_ht': 0.0, 'handicap_home_minus_0_5': 0.0, 'handicap_home_minus_1_5': 0.0, 'handicap_home_minus_2_5': 0.0}
+    accum = {
+        'over_0_5': 0.0, 'over_1_5': 0.0, 'over_2_5': 0.0, 'over_3_5': 0.0, 'over_4_5': 0.0,  # Genişletilmiş alt/üst
+        'btts': 0.0, 'win_a': 0.0, 'draw': 0.0, 'over_ht': 0.0, 
+        'handicap_home_minus_0_5': 0.0, 'handicap_home_minus_1_5': 0.0, 'handicap_home_minus_2_5': 0.0
+    }
     
     # İlk yarı lambdaları (genelde 40-45% civarı)
     s_a_ht = s_a * 0.42
@@ -1012,7 +1031,15 @@ def calculate_match_probabilities(s_a: float, s_b: float) -> Dict[str, float]:
     for i in limits:
         for j in limits:
             prob = poisson_pmf(s_a, i) * poisson_pmf(s_b, j)
-            accum['over'] += prob if (i + j) > 2 else 0.0
+            total_goals = i + j
+            
+            # Genişletilmiş alt/üst hesaplamaları
+            if total_goals > 0:   accum['over_0_5'] += prob
+            if total_goals > 1:   accum['over_1_5'] += prob
+            if total_goals > 2:   accum['over_2_5'] += prob
+            if total_goals > 3:   accum['over_3_5'] += prob
+            if total_goals > 4:   accum['over_4_5'] += prob
+            
             accum['btts'] += prob if (i > 0 and j > 0) else 0.0
             if i > j:
                 accum['win_a'] += prob
@@ -1035,22 +1062,38 @@ def calculate_match_probabilities(s_a: float, s_b: float) -> Dict[str, float]:
 
     win_b = max(0.0, 1.0 - accum['win_a'] - accum['draw'])
     prob_dict = {
-        'ust_2.5': round(accum['over'] * 100, 1),
-        'alt_2.5': round((1 - accum['over']) * 100, 1),
+        # Genişletilmiş Alt/Üst Bahisleri
+        'ust_0_5': round(accum['over_0_5'] * 100, 1),
+        'alt_0_5': round((1 - accum['over_0_5']) * 100, 1),
+        'ust_1_5': round(accum['over_1_5'] * 100, 1),
+        'alt_1_5': round((1 - accum['over_1_5']) * 100, 1),
+        'ust_2_5': round(accum['over_2_5'] * 100, 1),
+        'alt_2_5': round((1 - accum['over_2_5']) * 100, 1),
+        'ust_3_5': round(accum['over_3_5'] * 100, 1),
+        'alt_3_5': round((1 - accum['over_3_5']) * 100, 1),
+        'ust_4_5': round(accum['over_4_5'] * 100, 1),
+        'alt_4_5': round((1 - accum['over_4_5']) * 100, 1),
+        
+        # Karşılıklı Gol
         'kg_var': round(accum['btts'] * 100, 1),
         'kg_yok': round((1 - accum['btts']) * 100, 1),
+        
+        # Maç Sonucu (1X2)
         'win_a': round(accum['win_a'] * 100, 1),
         'win_b': round(win_b * 100, 1),
         'draw': round(accum['draw'] * 100, 1),
-        # Yeni tahminler
-        'ilk_yari_1.5_ust': round(accum['over_ht'] * 100, 1),
-        'ilk_yari_1.5_alt': round((1 - accum['over_ht']) * 100, 1),
-        'handicap_ev_minus_0.5': round(accum['handicap_home_minus_0_5'] * 100, 1),
-        'handicap_ev_minus_1.5': round(accum['handicap_home_minus_1_5'] * 100, 1),
-        'handicap_ev_minus_2.5': round(accum['handicap_home_minus_2_5'] * 100, 1),
-        'handicap_dep_plus_0.5': round((1 - accum['handicap_home_minus_0_5']) * 100, 1),
-        'handicap_dep_plus_1.5': round((1 - accum['handicap_home_minus_1_5']) * 100, 1),
-        'handicap_dep_plus_2.5': round((1 - accum['handicap_home_minus_2_5']) * 100, 1),
+        
+        # İlk Yarı Tahminleri
+        'ilk_yari_1_5_ust': round(accum['over_ht'] * 100, 1),
+        'ilk_yari_1_5_alt': round((1 - accum['over_ht']) * 100, 1),
+        
+        # Handikap Bahisleri
+        'handicap_ev_minus_0_5': round(accum['handicap_home_minus_0_5'] * 100, 1),
+        'handicap_ev_minus_1_5': round(accum['handicap_home_minus_1_5'] * 100, 1),
+        'handicap_ev_minus_2_5': round(accum['handicap_home_minus_2_5'] * 100, 1),
+        'handicap_dep_plus_0_5': round((1 - accum['handicap_home_minus_0_5']) * 100, 1),
+        'handicap_dep_plus_1_5': round((1 - accum['handicap_home_minus_1_5']) * 100, 1),
+        'handicap_dep_plus_2_5': round((1 - accum['handicap_home_minus_2_5']) * 100, 1),
     }
     return prob_dict
 
@@ -1217,8 +1260,9 @@ def run_core_analysis(api_key, base_url, id_a, id_b, name_a, name_b, fixture_id,
     home_advantage = team_home_adv * max(0.96, min(1.12, league_bias)) * quality_adjust
     home_advantage = max(1.02, min(1.20, home_advantage))
 
-    last_matches_a = api_utils.get_team_last_matches_stats(api_key, base_url, id_a, limit=10, skip_limit=skip_api_limit)
-    last_matches_b = api_utils.get_team_last_matches_stats(api_key, base_url, id_b, limit=10, skip_limit=skip_api_limit)
+    # Güncel performansa odaklan - sadece son 6 maç
+    last_matches_a = api_utils.get_team_last_matches_stats(api_key, base_url, id_a, limit=6, skip_limit=skip_api_limit)
+    last_matches_b = api_utils.get_team_last_matches_stats(api_key, base_url, id_b, limit=6, skip_limit=skip_api_limit)
     weighted_stats_a = calculate_weighted_stats(last_matches_a) if last_matches_a else {}
     weighted_stats_b = calculate_weighted_stats(last_matches_b) if last_matches_b else {}
     
@@ -1226,7 +1270,8 @@ def run_core_analysis(api_key, base_url, id_a, id_b, name_a, name_b, fixture_id,
     form_string_a = get_form_string(last_matches_a, limit=5)
     form_string_b = get_form_string(last_matches_b, limit=5)
 
-    FORM_WEIGHT, SEASON_WEIGHT = 0.6, 0.4
+    # Güncel form daha önemli - gerçek performansa odaklan
+    FORM_WEIGHT, SEASON_WEIGHT = 0.80, 0.20
 
     def get_blended_stat(s_stats, w_stats, loc, s_key, w_key):
         season_val = s_stats.get(loc, {}).get(s_key, 0)
@@ -1276,38 +1321,45 @@ def run_core_analysis(api_key, base_url, id_a, id_b, name_a, name_b, fixture_id,
     att_mult_b = injury_impact if any(pid in injured_ids for pid in key_b.get('top_scorer_ids', [])) else 1.0
     def_mult_b = (1 / injury_impact) if any(pid in injured_ids for pid in key_b.get('most_minutes_ids', [])) else 1.0
 
+    # Güncel form faktörüne daha fazla ağırlık ver
     form_factor_a = calculate_form_factor(last_matches_a, 'home')
     form_factor_b = calculate_form_factor(last_matches_b, 'away')
+    
+    # Form faktörünü güçlendir (daha etkili olsun)
+    if form_factor_a > 1.1:
+        form_factor_a = 1.0 + ((form_factor_a - 1.0) * 1.5)  # İyi formu güçlendir
+    elif form_factor_a < 0.9:
+        form_factor_a = 1.0 - ((1.0 - form_factor_a) * 1.5)  # Kötü formu güçlendir
+        
+    if form_factor_b > 1.1:
+        form_factor_b = 1.0 + ((form_factor_b - 1.0) * 1.5)  # İyi formu güçlendir
+    elif form_factor_b < 0.9:
+        form_factor_b = 1.0 - ((1.0 - form_factor_b) * 1.5)  # Kötü formu güçlendir
 
     # Önce Elo farkını hesapla ve temel ayarlamayı yap
     elo_diff = rating_home - rating_away
     
-    # ELO etkilerini azalt, güncel form ve istatistiklere daha fazla ağırlık ver
-    if elo_diff < -150:  # Deplasman çok güçlü (örn: PSG)
-        elo_boost_away = 1.25  # Azaltıldı (1.40 → 1.25)
-        elo_nerf_home = 0.80   # Azaltıldı (0.70 → 0.80)
-    elif elo_diff < -80:
-        elo_boost_away = 1.20  # Azaltıldı (1.32 → 1.20)
-        elo_nerf_home = 0.85   # Azaltıldı (0.78 → 0.85)
-    elif elo_diff < -40:  # ELO etkisi azaltıldı
-        elo_boost_away = 1.15  # Azaltıldı (1.25 → 1.15)
-        elo_nerf_home = 0.90   # Azaltıldı (0.85 → 0.90)
-    elif elo_diff < -15:  # -15 ile -40 arası
-        elo_boost_away = 1.10  # Azaltıldı (1.18 → 1.10)
-        elo_nerf_home = 0.95   # Azaltıldı (0.90 → 0.95)
-    elif elo_diff > 150:  # Ev sahibi çok güçlü
-        elo_boost_away = 0.80  # Azaltıldı (0.70 → 0.80)
-        elo_nerf_home = 1.25   # Azaltıldı (1.35 → 1.25)
-    elif elo_diff > 80:
-        elo_boost_away = 0.85  # Azaltıldı (0.78 → 0.85)
-        elo_nerf_home = 1.20   # Azaltıldı (1.28 → 1.20)
-    elif elo_diff > 40:  # ELO etkisi azaltıldı
-        elo_boost_away = 0.90  # Azaltıldı (0.85 → 0.90)
-        elo_nerf_home = 1.15   # Azaltıldı (1.22 → 1.15)
-    elif elo_diff > 15:  # +15 ile +40 arası
-        elo_boost_away = 0.95  # Azaltıldı (0.90 → 0.95)
-        elo_nerf_home = 1.08   # Azaltıldı (1.15 → 1.08)
-    else:  # -15 ile +15 arası: Gerçekten dengeli
+    # ELO etkilerini minimal seviyeye indir - gerçek performansa odaklan
+    # Sadece çok büyük kalite farklarında minimal etki yapalım
+    if elo_diff < -200:  # Sadece çok büyük farklarda
+        elo_boost_away = 1.08  # Çok azaltıldı (1.25 → 1.08)
+        elo_nerf_home = 0.94   # Çok azaltıldı (0.80 → 0.94)
+    elif elo_diff < -100:
+        elo_boost_away = 1.05  # Çok azaltıldı (1.20 → 1.05)
+        elo_nerf_home = 0.96   # Çok azaltıldı (0.85 → 0.96)
+    elif elo_diff < -50:  # Normal farklarda minimal etki
+        elo_boost_away = 1.03  # Çok azaltıldı (1.15 → 1.03)
+        elo_nerf_home = 0.98   # Çok azaltıldı (0.90 → 0.98)
+    elif elo_diff > 200:  # Sadece çok büyük farklarda
+        elo_boost_away = 0.94  # Çok azaltıldı (0.80 → 0.94)
+        elo_nerf_home = 1.08   # Çok azaltıldı (1.25 → 1.08)
+    elif elo_diff > 100:
+        elo_boost_away = 0.96  # Çok azaltıldı (0.85 → 0.96)
+        elo_nerf_home = 1.05   # Çok azaltıldı (1.20 → 1.05)
+    elif elo_diff > 50:  # Normal farklarda minimal etki
+        elo_boost_away = 0.98  # Çok azaltıldı (0.90 → 0.98)
+        elo_nerf_home = 1.03   # Çok azaltıldı (1.15 → 1.03)
+    else:  # -50 ile +50 arası: ELO etkisini tamamen yok say
         elo_boost_away = 1.0
         elo_nerf_home = 1.0
 
@@ -1324,9 +1376,9 @@ def run_core_analysis(api_key, base_url, id_a, id_b, name_a, name_b, fixture_id,
     
     lambda_b = base_lambda_b * att_mult_b * def_mult_a
 
-    # Form faktörü etkisini artır (güncel performans daha önemli)
-    lambda_a *= min(1.15, max(0.85, form_factor_a))  # %15 max etki (önceden %8)
-    lambda_b *= min(1.15, max(0.85, form_factor_b))  # %15 max etki (önceden %8)
+    # Form faktörü etkisini artır (güncel performans ÇOK ÖNEMLİ)
+    lambda_a *= min(1.25, max(0.75, form_factor_a))  # %25 max etki - güçlü form etkisi
+    lambda_b *= min(1.25, max(0.75, form_factor_b))  # %25 max etki - güçlü form etkisi
     
     # 🆕 YENİ FAKTÖRLER - Gelişmiş Analiz Sistemi
     
@@ -1379,6 +1431,26 @@ def run_core_analysis(api_key, base_url, id_a, id_b, name_a, name_b, fixture_id,
     injury_factor_b = calculate_injury_factor(injuries_b, id_b)
     lambda_a *= injury_factor_a
     lambda_b *= injury_factor_b
+    
+    # 🤖 MACHINE LEARNING ADAPTASYONU (Geçmiş maçlardan öğrenme)
+    if ML_AVAILABLE:
+        # Takım bazlı ML ayarlamaları
+        home_ml_adj = ml_system.get_team_learning_adjustment(id_a, id_b, "home")
+        away_ml_adj = ml_system.get_team_learning_adjustment(id_b, id_a, "away")
+        
+        # Lig bazlı ML ayarlamaları
+        league_ml_adj = ml_system.get_league_learning_adjustment(league_info['league_id'])
+        
+        # ML faktörlerini uygula
+        lambda_a *= home_ml_adj["attack_adj"] * home_ml_adj["defense_adj"]
+        lambda_b *= away_ml_adj["attack_adj"] * away_ml_adj["defense_adj"]
+        
+        # Ev sahibi avantajını ML ile ayarla
+        home_advantage *= league_ml_adj["home_advantage_adj"]
+        
+        # Gol beklentisini ML ile ayarla
+        lambda_a *= league_ml_adj["goal_expectancy_adj"]
+        lambda_b *= league_ml_adj["goal_expectancy_adj"]
     
     # Lig kalitesi çarpanı
     league_quality = calculate_league_quality_multiplier(league_info['league_id'])
@@ -1442,6 +1514,17 @@ def run_core_analysis(api_key, base_url, id_a, id_b, name_a, name_b, fixture_id,
     elo_signal = min(0.5, abs(elo_diff) / 320)
     stability_component = 0.55 + (avg_stab / 200)
     confidence_multiplier = stability_component * (0.75 + 0.25 * sample_factor) * (1 - 0.25 * volatility_ratio) * (1 + 0.5 * elo_signal)
+    
+    # 🤖 ML ile güven skorunu ayarla
+    if ML_AVAILABLE:
+        ml_confidence_adj = ml_system.get_prediction_confidence_multiplier({
+            'elo_diff': elo_diff,
+            'form_factor_a': form_factor_a,
+            'form_factor_b': form_factor_b,
+            'league_id': league_info['league_id']
+        })
+        confidence_multiplier *= ml_confidence_adj
+    
     confidence = round(min(100.0, max(5.0, diff * max(0.4, confidence_multiplier))), 1)
 
     pace_index = (home_att + away_att) / max(0.2, avg_home_goals + avg_away_goals)

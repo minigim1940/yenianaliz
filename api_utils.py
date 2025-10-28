@@ -663,7 +663,9 @@ def get_fixture_detailed_odds(api_key: str, base_url: str, fixture_id: int) -> T
                         'bet_name': bet.get('name'),
                         'values': bet.get('values', [])
                     })
-                elif 'over/under' in bet_name or 'goals over/under' in bet_name or 'total goals' in bet_name:
+                elif ('over/under' in bet_name or 'goals over/under' in bet_name or 'total goals' in bet_name or 
+                      'goals o/u' in bet_name or 'match goals' in bet_name or 'o/u goals' in bet_name or
+                      'goal total' in bet_name or 'goals total' in bet_name):
                     categorized_odds['over_under'].append({
                         'bookmaker': bookmaker.get('name'),
                         'bet_name': bet.get('name'),

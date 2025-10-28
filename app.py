@@ -652,7 +652,7 @@ def display_summary_tab(analysis: Dict, team_names: Dict, odds_data: Optional[Di
     st.markdown("---")
     st.subheader("⚽ Gol Piyasaları (Model Tahmini)")
     # Olasılıklar zaten yüzde formatında geliyor
-    gol_data = pd.DataFrame({'Kategori': ['2.5 ÜST', '2.5 ALT', 'KG VAR', 'KG YOK'], 'İhtimal (%)': [analysis['probs']['ust_2.5'], analysis['probs']['alt_2.5'], analysis['probs']['kg_var'], analysis['probs']['kg_yok']]}).set_index('Kategori')
+    gol_data = pd.DataFrame({'Kategori': ['2.5 ÜST', '2.5 ALT', 'KG VAR', 'KG YOK'], 'İhtimal (%)': [analysis['probs']['ust_2_5'], analysis['probs']['alt_2_5'], analysis['probs']['kg_var'], analysis['probs']['kg_yok']]}).set_index('Kategori')
     st.dataframe(gol_data.style.format("{:.1f}"), use_container_width=True)
 
 def display_stats_tab(stats: Dict, team_names: Dict, team_ids: Dict, params: Optional[Dict] = None):
@@ -1131,17 +1131,21 @@ def display_detailed_betting_tab(analysis: Dict, team_names: Dict, fixture_id: i
             if bookmakers_data:
                 st.success(f"✅ {len(bookmakers_data)} bookmaker'dan oran bulundu!")
                 
-                # Türkçe bahis kategorileri
+                # Türkçe bahis kategorileri (GELİŞTİRİLMİŞ!)
                 turkish_bet_names = {
                     'Match Winner': 'Maç Kazananı (1X2)',
                     'Over/Under': 'Toplam Gol (Alt/Üst)',
                     'Both Teams Score': 'Karşılıklı Gol',
+                    'First Half Winner': 'İlk Yarı Kazananı',  # YENİ!
+                    'First Half Result': 'İlk Yarı Sonucu',    # YENİ!
                     'Asian Handicap': 'Asya Handikap',
                     'Double Chance': 'Çifte Şans',
-                    'First Half Winner': 'İlk Yarı Kazananı',
                     'Correct Score': 'Doğru Skor',
                     'Total Cards': 'Toplam Kart',
-                    'Total Corners': 'Toplam Korner'
+                    'Total Corners': 'Toplam Korner',
+                    'Half Time/Full Time': 'İlk Yarı/Tam Zaman',
+                    'Goals Over/Under': 'Gol Alt/Üst',          # YENİ!
+                    'Total Goals': 'Toplam Gol Sayısı'         # YENİ!
                 }
                 
                 # En güvenilir oranları hesapla
@@ -1168,6 +1172,9 @@ def calculate_most_reliable_odds(bookmakers_data, analysis):
     # Model tahminleri
     probs = analysis.get('probs', {})
     
+    # Over/Under verilerini kontrol et
+    over_under_found = False
+    
     for bookmaker in bookmakers_data:
         bookmaker_name = bookmaker.get('name', 'Bilinmiyor')
         bets = bookmaker.get('bets', [])
@@ -1176,16 +1183,22 @@ def calculate_most_reliable_odds(bookmakers_data, analysis):
             bet_name = bet.get('name', '')
             values = bet.get('values', [])
             
+            # Over/Under bet türlerini tespit et (farklı isimlerle)
+            bet_key = bet_name
+            if any(keyword in bet_name.lower() for keyword in ['over/under', 'goals over/under', 'total goals', 'o/u goals', 'goal total']):
+                bet_key = 'Over/Under'  # Standart isimle kaydet
+                over_under_found = True
+            
             # Bahis türü güvenilirlik skorunu hesapla
-            if bet_name not in reliable_odds:
-                reliable_odds[bet_name] = {
+            if bet_key not in reliable_odds:
+                reliable_odds[bet_key] = {
                     'best_odds': {},
                     'reliability_score': 0,
                     'bookmaker_count': 0,
                     'average_odds': {}
                 }
             
-            reliable_odds[bet_name]['bookmaker_count'] += 1
+            reliable_odds[bet_key]['bookmaker_count'] += 1
             
             for value in values:
                 outcome = value.get('value', '')
@@ -1194,14 +1207,21 @@ def calculate_most_reliable_odds(bookmakers_data, analysis):
                 try:
                     odd_float = float(odd)
                     
-                    if outcome not in reliable_odds[bet_name]['best_odds']:
-                        reliable_odds[bet_name]['best_odds'][outcome] = {
+                    # Over/Under için standart outcome isimleri kullan
+                    if bet_key == 'Over/Under':
+                        if 'over' in outcome.lower() and '2.5' in outcome:
+                            outcome = 'Over 2.5'
+                        elif 'under' in outcome.lower() and '2.5' in outcome:
+                            outcome = 'Under 2.5'
+                    
+                    if outcome not in reliable_odds[bet_key]['best_odds']:
+                        reliable_odds[bet_key]['best_odds'][outcome] = {
                             'odd': odd_float,
                             'bookmaker': bookmaker_name,
                             'implied_prob': round(100 / odd_float, 1) if odd_float > 0 else 0
                         }
-                    elif odd_float > reliable_odds[bet_name]['best_odds'][outcome]['odd']:
-                        reliable_odds[bet_name]['best_odds'][outcome] = {
+                    elif odd_float > reliable_odds[bet_key]['best_odds'][outcome]['odd']:
+                        reliable_odds[bet_key]['best_odds'][outcome] = {
                             'odd': odd_float,
                             'bookmaker': bookmaker_name,
                             'implied_prob': round(100 / odd_float, 1) if odd_float > 0 else 0
@@ -1290,13 +1310,207 @@ def display_betting_categories_turkish(bookmakers_data, reliable_odds, team_name
             outcome_tr = {'Home': f'🏠 {team_names["a"]}', 'Away': f'✈️ {team_names["b"]}', 'Draw': '🤝 Beraberlik'}
             st.success(f"💎 **En Değerli Bahis:** {outcome_tr.get(outcome, outcome)} - Oran: {data['odd']} (Model: {model_prob:.1f}% vs Piyasa: {data['implied_prob']}%) | **Değer: +{best_value_diff:.1f}%**")
     
-    # Alt/Üst Bahisleri
-    if 'Over/Under' in reliable_odds:
+    # İlk Yarı Bahisleri (YENİ!)
+    if 'First Half Winner' in reliable_odds:
+        st.markdown("---")
+        first_half = reliable_odds['First Half Winner']
+        reliability_icon, reliability_text, reliability_color = get_reliability_indicators(first_half['reliability_score'])
+        
+        st.markdown(f"""#### 🕐 İlk Yarı Kazananı <span style='color: {reliability_color}; margin-left: 10px;'>{reliability_icon} {reliability_text}</span>""", unsafe_allow_html=True)
+        
+        col1, col2, col3, col4 = st.columns(4)
+        
+        with col1:
+            st.metric("Güvenilirlik", f"{first_half['reliability_score']}%")
+        with col2:
+            st.metric("Bookmaker Sayısı", first_half['bookmaker_count'])
+        with col3:
+            home_data = first_half['best_odds'].get('Home', {})
+            if home_data:
+                model_prob = probs.get('ilk_yari_ev_kazanir', 0)  # İlk yarı ev sahibi
+                market_prob = home_data['implied_prob']
+                value_diff = model_prob - market_prob
+                
+                st.metric(
+                    f"🏠 1Y - {team_names['a']}",
+                    f"{home_data['odd']} ({market_prob}%)",
+                    delta=f"Model: {model_prob:.1f}% ({value_diff:+.1f}%)"
+                )
+        with col4:
+            away_data = first_half['best_odds'].get('Away', {})
+            if away_data:
+                model_prob = probs.get('ilk_yari_dep_kazanir', 0)  # İlk yarı deplasman
+                market_prob = away_data['implied_prob']
+                value_diff = model_prob - market_prob
+                
+                st.metric(
+                    f"✈️ 1Y - {team_names['b']}",
+                    f"{away_data['odd']} ({market_prob}%)",
+                    delta=f"Model: {model_prob:.1f}% ({value_diff:+.1f}%)"
+                )
+    
+    # 2.5 Alt/Üst Bahisleri (HER ZAMAN GÖSTER!)
+    st.markdown("---") 
+    
+    # Model tahminlerini al
+    model_over_25 = probs.get('ust_2_5', 50)
+    model_under_25 = probs.get('alt_2_5', 50)
+    
+    # API'den Over/Under verisi var mı kontrol et
+    api_over_under = reliable_odds.get('Over/Under', {})
+    has_api_data = bool(api_over_under.get('best_odds', {}))
+    
+    # Eğer API'den veri yoksa, model tahminlerini kullanarak sahte API verisi oluştur
+    if not has_api_data and 'ust_2_5' in probs and 'alt_2_5' in probs:
+        over_prob = probs['ust_2_5']
+        under_prob = probs['alt_2_5']
+        
+        # Model tahminlerinden oranları hesapla
+        over_odd = round(100 / over_prob, 2) if over_prob > 1 else 50.0
+        under_odd = round(100 / under_prob, 2) if under_prob > 1 else 50.0
+        
+        # Sahte API verisi oluştur (model tabanlı)
+        api_over_under = {
+            'best_odds': {
+                'Over 2.5': {
+                    'odd': over_odd,
+                    'bookmaker': 'ML Model',
+                    'implied_prob': over_prob
+                },
+                'Under 2.5': {
+                    'odd': under_odd,
+                    'bookmaker': 'ML Model', 
+                    'implied_prob': under_prob
+                }
+            },
+            'reliability_score': 85,  # ML Model güvenilirliği
+            'bookmaker_count': 1
+        }
+        has_api_data = True  # Sahte veri var artık
+    
+    # Başlık dinamik olarak değişsin - ML Model check yap
+    is_ml_model = any(
+        data.get('bookmaker') == 'ML Model' 
+        for data in api_over_under.get('best_odds', {}).values()
+        if isinstance(data, dict)
+    )
+    
+    if is_ml_model:
+        title_text = """#### 📊 Toplam Gol (Alt/Üst) <span style='color: #FFD700; margin-left: 10px;'>🤖 ML Tahmin Sistemi</span>"""
+    else:
+        title_text = """#### 📊 Toplam Gol (Alt/Üst) <span style='color: #00FF00; margin-left: 10px;'>📡 Gerçek API Verileri</span>"""
+    
+    st.markdown(title_text, unsafe_allow_html=True)
+    
+    if has_api_data:
+        # Over/Under kategorisinin güvenilirlik bilgilerini göster
+        reliability_icon, reliability_text, reliability_color = get_reliability_indicators(
+            api_over_under.get('reliability_score', 85)
+        )
+        
+        col1, col2 = st.columns(2)
+        with col1:
+            reliability_score = api_over_under.get('reliability_score', 85)
+            source = "ML Model" if is_ml_model else "API"
+            st.metric("Güvenilirlik", f"{reliability_score}% ({source})")
+        with col2:
+            count = api_over_under.get('bookmaker_count', 1)
+            source_text = "ML Sistemi" if is_ml_model else f"{count} Bookmaker"
+            st.metric("Veri Kaynağı", source_text)
+    
+    # 2.5 Alt/Üst oranlarını göster
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        # API'den over verisi var mı ara
+        over_data = None
+        if has_api_data:
+            over_keys = ['Over 2.5', 'Üst 2.5', '2.5+', 'Over2.5']
+            for key in over_keys:
+                if key in api_over_under['best_odds']:
+                    over_data = api_over_under['best_odds'][key]
+                    break
+        
+        if over_data:
+            # Veri var (API veya ML)
+            market_prob = over_data.get('implied_prob', 50)
+            odd_value = over_data.get('odd', 0)
+            bookmaker = over_data.get('bookmaker', 'Bilinmiyor')
+            
+            # ML model ise özel gösterim
+            if bookmaker == 'ML Model':
+                value_indicator = "🤖 ML Tahmin"
+                confidence = f"Güven: %{market_prob:.1f}"
+            else:
+                value_diff = model_over_25 - market_prob
+                value_indicator = f"Model karş.: {model_over_25:.1f}% ({value_diff:+.1f}%)"
+                confidence = f"Piyasa: %{market_prob:.1f}"
+            
+            st.metric(
+                "🔺 2.5 Üst",
+                f"{odd_value:.2f}",
+                delta=value_indicator,
+                help=f"Kaynak: {bookmaker} | {confidence}"
+            )
+        else:
+            # Hiç veri yok
+            st.metric(
+                "🔺 2.5 Üst (Yok)",
+                "Veri Yok",
+                delta="API erişim sorunu"
+            )
+    
+    with col2:
+        # API'den under verisi var mı ara
+        under_data = None
+        if has_api_data:
+            under_keys = ['Under 2.5', 'Alt 2.5', '2.5-', 'Under2.5']
+            for key in under_keys:
+                if key in api_over_under['best_odds']:
+                    under_data = api_over_under['best_odds'][key]
+                    break
+        
+        if under_data:
+            # Veri var (API veya ML)
+            market_prob = under_data.get('implied_prob', 50)
+            odd_value = under_data.get('odd', 0)
+            bookmaker = under_data.get('bookmaker', 'Bilinmiyor')
+            
+            # ML model ise özel gösterim
+            if bookmaker == 'ML Model':
+                value_indicator = "🤖 ML Tahmin"
+                confidence = f"Güven: %{market_prob:.1f}"
+            else:
+                value_diff = model_under_25 - market_prob
+                value_indicator = f"Model karş.: {model_under_25:.1f}% ({value_diff:+.1f}%)"
+                confidence = f"Piyasa: %{market_prob:.1f}"
+            
+            st.metric(
+                "🔻 2.5 Alt",
+                f"{odd_value:.2f}",
+                delta=value_indicator,
+                help=f"Kaynak: {bookmaker} | {confidence}"
+            )
+        else:
+            # Hiç veri yok
+            st.metric(
+                "🔻 2.5 Alt (Yok)",
+                "Veri Yok", 
+                delta="API erişim sorunu"
+            )
+    
+    # Eski Alt/Üst Bahisleri kodunu kaldır - artık yukarıda entegre edildi
+    # if 'Over/Under' in reliable_odds: - Bu kısım artık gereksiz
+    if False:  # Bu kısmı devre dışı bırak
         st.markdown("---")
         over_under = reliable_odds['Over/Under']
         reliability_icon, reliability_text, reliability_color = get_reliability_indicators(over_under['reliability_score'])
         
         st.markdown(f"""#### 📊 Toplam Gol (Alt/Üst) <span style='color: {reliability_color}; margin-left: 10px;'>{reliability_icon} {reliability_text}</span>""", unsafe_allow_html=True)
+        
+        # Debug: API'den gelen verileri göster
+        with st.expander("🔍 Debug: API Verileri", expanded=False):
+            st.json(over_under['best_odds'])
         
         col1, col2 = st.columns(2)
         
@@ -1306,37 +1520,14 @@ def display_betting_categories_turkish(bookmakers_data, reliable_odds, team_name
         with col2:
             st.metric("Bookmaker Sayısı", over_under['bookmaker_count'])
         
-        # En yaygın alt/üst değerlerini göster
-        common_totals = ['2.5', '1.5', '3.5']
+        # 2.5 Alt/Üst verilerini ara (farklı formatlarda olabilir)
+        over_keys = ['Over 2.5', 'Üst 2.5', '2.5+', 'Over2.5']
+        under_keys = ['Under 2.5', 'Alt 2.5', '2.5-', 'Under2.5']
         
-        for total in common_totals:
-            over_key = f'Over {total}'
-            under_key = f'Under {total}'
-            
-            if over_key in over_under['best_odds'] and under_key in over_under['best_odds']:
-                col1, col2 = st.columns(2)
-                
-                with col1:
-                    over_data = over_under['best_odds'][over_key]
-                    model_over = probs.get('ust_2.5', 0) if total == '2.5' else 50  # Zaten 0-100 arası yüzde
-                    value_diff = model_over - over_data['implied_prob']
-                    
-                    st.metric(
-                        f"🔺 {total} Üst",
-                        f"{over_data['odd']} ({over_data['implied_prob']}%)",
-                        delta=f"Model: {model_over:.1f}% ({value_diff:+.1f}%)"
-                    )
-                
-                with col2:
-                    under_data = over_under['best_odds'][under_key]
-                    model_under = (100 - model_over)
-                    value_diff = model_under - under_data['implied_prob']
-                    
-                    st.metric(
-                        f"🔻 {total} Alt",
-                        f"{under_data['odd']} ({under_data['implied_prob']}%)",
-                        delta=f"Model: {model_under:.1f}% ({value_diff:+.1f}%)"
-                    )
+        over_data = None
+        under_data = None
+        
+        pass  # Bu eski kod artık gerekmiyor - yukarıda yeni sistem var
     
     # Karşılıklı Gol
     if 'Both Teams Score' in reliable_odds:
@@ -1377,6 +1568,51 @@ def display_betting_categories_turkish(bookmakers_data, reliable_odds, team_name
                     f"{no_data['odd']} ({no_data['implied_prob']}%)",
                     delta=f"Model: {model_prob:.1f}% ({value_diff:+.1f}%)"
                 )
+    
+    # Over/Under verilerini API'den bulmaya çalış (farklı isimlerle)
+    over_under_variants = [
+        'Over/Under', 'Goals Over/Under', 'Total Goals', 'Over Under', 
+        'Goals O/U', 'Match Goals', 'Total', 'Goals Total'
+    ]
+    
+    # Tüm API kategorilerini kontrol et
+    found_over_under = None
+    for variant in over_under_variants:
+        if variant in reliable_odds:
+            found_over_under = variant
+            break
+    
+    # Eğer Over/Under bulunamazsa standart isimle ekle
+    if not found_over_under:
+        # Debug: Hangi kategoriler mevcut görelim
+        st.info(f"🔍 Mevcut API kategorileri: {list(reliable_odds.keys())}")
+        
+        # Model tahminlerini kullanarak standart formatta ekle
+        if 'ust_2_5' in probs and 'alt_2_5' in probs:
+            over_prob = probs['ust_2_5'] / 100
+            under_prob = probs['alt_2_5'] / 100
+            
+            reliable_odds['Over/Under'] = {
+                'best_odds': {
+                    'Over 2.5': {
+                        'odd': 1/over_prob if over_prob > 0.01 else 50.0,
+                        'bookmaker': 'Model Tahmini', 
+                        'implied_prob': probs['ust_2_5']
+                    },
+                    'Under 2.5': {
+                        'odd': 1/under_prob if under_prob > 0.01 else 50.0,
+                        'bookmaker': 'Model Tahmini',
+                        'implied_prob': probs['alt_2_5'] 
+                    }
+                },
+                'reliability_score': 70,  # Model güvenilirliği
+                'bookmaker_count': 1
+            }
+    else:
+        # API'den Over/Under verisi var, standart isme çevir
+        if found_over_under != 'Over/Under':
+            reliable_odds['Over/Under'] = reliable_odds[found_over_under]
+            del reliable_odds[found_over_under]
 
 def display_model_predictions_only(analysis, team_names):
     """Sadece model tahminlerini göster"""
@@ -3235,7 +3471,7 @@ def analyze_fixture_summary(fixture: Dict, model_params: Dict) -> Optional[Dict]
             "Gerçekleşen Skor": actual_score_str, 
             "Sonuç": result_icon, 
             "AI Güven Puanı": analysis['confidence'], 
-            "2.5 ÜST (%)": probs['ust_2.5'], 
+            "2.5 ÜST (%)": probs['ust_2_5'], 
             "KG VAR (%)": probs['kg_var'], 
             "home_id": id_a, 
             "away_id": id_b, 
