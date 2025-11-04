@@ -2963,3 +2963,369 @@ def get_league_top_assists(api_key: str, base_url: str, league_id: int, season: 
     if error:
         return None, error
     return (response, None) if response else (None, "Asist krallığı bilgileri bulunamadı.")
+
+
+# ============================================================================
+# PHASE 3.3 - API COVERAGE EXPANSION (NEW ENDPOINTS)
+# ============================================================================
+
+@st.cache_data(ttl=1800)  # 30 dakika cache - Match events
+def get_fixture_events(api_key: str, base_url: str, fixture_id: int, skip_limit: bool = False) -> Tuple[Optional[List[Dict[str, Any]]], Optional[str]]:
+    """
+    Maç olaylarını getirir (goller, kartlar, değişiklikler, vb.)
+    
+    Returns:
+        List of events with structure:
+        {
+            'time': {'elapsed': 23, 'extra': None},
+            'team': {...},
+            'player': {...},
+            'assist': {...},
+            'type': 'Goal' | 'Card' | 'subst' | 'Var',
+            'detail': 'Normal Goal' | 'Yellow Card' | ...,
+            'comments': 'Right Foot' | ...
+        }
+    """
+    response, error = make_api_request(api_key, base_url, "fixtures/events", {'fixture': fixture_id}, skip_limit=skip_limit)
+    if error:
+        return None, error
+    return (response, None) if response else (None, "Maç olayları bulunamadı.")
+
+
+@st.cache_data(ttl=1800)  # 30 dakika cache
+def get_fixture_lineups(api_key: str, base_url: str, fixture_id: int, skip_limit: bool = False) -> Tuple[Optional[List[Dict[str, Any]]], Optional[str]]:
+    """
+    Maç kadroları ve dizilişlerini getirir
+    
+    Returns:
+        List with 2 teams:
+        {
+            'team': {...},
+            'formation': '4-3-3',
+            'startXI': [...],
+            'substitutes': [...]
+        }
+    """
+    response, error = make_api_request(api_key, base_url, "fixtures/lineups", {'fixture': fixture_id}, skip_limit=skip_limit)
+    if error:
+        return None, error
+    return (response, None) if response else (None, "Kadro bilgileri bulunamadı.")
+
+
+@st.cache_data(ttl=3600)  # 1 saat cache
+def get_player_statistics_by_season(
+    api_key: str, 
+    base_url: str, 
+    player_id: int, 
+    season: int,
+    skip_limit: bool = False
+) -> Tuple[Optional[List[Dict[str, Any]]], Optional[str]]:
+    """
+    Oyuncunun sezonluk istatistiklerini getirir
+    
+    Returns:
+        {
+            'player': {...},
+            'statistics': [{
+                'team': {...},
+                'league': {...},
+                'games': {...},
+                'goals': {...},
+                'passes': {...},
+                'tackles': {...},
+                'duels': {...},
+                ...
+            }]
+        }
+    """
+    response, error = make_api_request(
+        api_key, base_url, "players", 
+        {'id': player_id, 'season': season}, 
+        skip_limit=skip_limit
+    )
+    if error:
+        return None, error
+    return (response, None) if response else (None, "Oyuncu istatistikleri bulunamadı.")
+
+
+@st.cache_data(ttl=604800)  # 7 gün cache - Player data rarely changes
+def get_player_info(api_key: str, base_url: str, player_id: int, skip_limit: bool = False) -> Tuple[Optional[Dict[str, Any]], Optional[str]]:
+    """
+    Oyuncu temel bilgilerini getirir (ad, yaş, pozisyon, foto, vb.)
+    """
+    response, error = make_api_request(api_key, base_url, "players", {'id': player_id}, skip_limit=skip_limit)
+    if error:
+        return None, error
+    if response and len(response) > 0:
+        return response[0], None
+    return None, "Oyuncu bilgisi bulunamadı."
+
+
+@st.cache_data(ttl=86400)  # 24 saat cache
+def get_team_top_scorers(
+    api_key: str, 
+    base_url: str, 
+    team_id: int, 
+    league_id: int,
+    season: int,
+    limit: int = 5,
+    skip_limit: bool = False
+) -> Tuple[Optional[List[Dict[str, Any]]], Optional[str]]:
+    """
+    Takımın en golcü oyuncularını getirir
+    
+    Returns:
+        List of players sorted by goals (desc)
+    """
+    # Get all league top scorers, then filter by team
+    response, error = make_api_request(
+        api_key, base_url, "players/topscorers",
+        {'league': league_id, 'season': season},
+        skip_limit=skip_limit
+    )
+    
+    if error:
+        return None, error
+    
+    if not response:
+        return None, "Golcü bilgileri bulunamadı."
+    
+    # Filter by team
+    team_scorers = [
+        p for p in response 
+        if p.get('statistics', [{}])[0].get('team', {}).get('id') == team_id
+    ]
+    
+    return team_scorers[:limit], None
+
+
+@st.cache_data(ttl=86400)  # 24 saat cache
+def get_team_top_assists(
+    api_key: str, 
+    base_url: str, 
+    team_id: int, 
+    league_id: int,
+    season: int,
+    limit: int = 5,
+    skip_limit: bool = False
+) -> Tuple[Optional[List[Dict[str, Any]]], Optional[str]]:
+    """
+    Takımın en çok asist yapan oyuncularını getirir
+    """
+    response, error = make_api_request(
+        api_key, base_url, "players/topassists",
+        {'league': league_id, 'season': season},
+        skip_limit=skip_limit
+    )
+    
+    if error:
+        return None, error
+    
+    if not response:
+        return None, "Asist bilgileri bulunamadı."
+    
+    # Filter by team
+    team_assisters = [
+        p for p in response 
+        if p.get('statistics', [{}])[0].get('team', {}).get('id') == team_id
+    ]
+    
+    return team_assisters[:limit], None
+
+
+# ==================== PHASE 3.3 - ADDITIONAL ENDPOINTS (PART 2) ====================
+
+@st.cache_data(ttl=3600)  # 1 saat cache
+def get_fixture_statistics(
+    api_key: str,
+    base_url: str,
+    fixture_id: int,
+    skip_limit: bool = False
+) -> Tuple[Optional[List[Dict[str, Any]]], Optional[str]]:
+    """
+    Maç istatistiklerini getirir (Shots, Possession, Passes vb.)
+    
+    Returns:
+        Tuple of (statistics_list, error_message)
+        statistics_list: Her takım için istatistik dict'i içeren liste
+    """
+    response, error = make_api_request(
+        api_key, base_url, f"fixtures/statistics",
+        {'fixture': fixture_id},
+        skip_limit=skip_limit
+    )
+    
+    if error:
+        return None, error
+    
+    if not response:
+        return None, "Maç istatistikleri bulunamadı."
+    
+    return response, None
+
+
+@st.cache_data(ttl=3600)  # 1 saat cache
+def get_fixture_statistics_detailed(
+    api_key: str,
+    base_url: str,
+    fixture_id: int,
+    skip_limit: bool = False
+) -> Tuple[Optional[List[Dict[str, Any]]], Optional[str]]:
+    """
+    Maç istatistiklerini detaylı getirir (passing, defensive, duels vb.)
+    Wrapper for get_fixture_statistics with enhanced parsing
+    """
+    return get_fixture_statistics(api_key, base_url, fixture_id, skip_limit)
+
+
+@st.cache_data(ttl=7200)  # 2 saat cache
+def get_team_seasonal_stats(
+    api_key: str,
+    base_url: str,
+    team_id: int,
+    league_id: int,
+    season: int,
+    skip_limit: bool = False
+) -> Tuple[Optional[Dict[str, Any]], Optional[str]]:
+    """
+    Takımın sezonluk istatistiklerini getirir
+    """
+    response, error = make_api_request(
+        api_key, base_url, "teams/statistics",
+        {'team': team_id, 'league': league_id, 'season': season},
+        skip_limit=skip_limit
+    )
+    
+    if error:
+        return None, error
+    
+    return response, None
+
+
+@st.cache_data(ttl=86400)  # 24 saat cache
+def get_league_standings(
+    api_key: str,
+    base_url: str,
+    league_id: int,
+    season: int,
+    skip_limit: bool = False
+) -> Tuple[Optional[List[Dict[str, Any]]], Optional[str]]:
+    """
+    Lig puan durumunu getirir
+    """
+    response, error = make_api_request(
+        api_key, base_url, "standings",
+        {'league': league_id, 'season': season},
+        skip_limit=skip_limit
+    )
+    
+    if error:
+        return None, error
+    
+    if not response:
+        return None, "Puan durumu bulunamadı."
+    
+    # Extract standings
+    standings = []
+    for league_data in response:
+        if 'league' in league_data and 'standings' in league_data['league']:
+            standings.extend(league_data['league']['standings'])
+    
+    return standings, None
+
+
+@st.cache_data(ttl=1800)  # 30 dakika cache
+def get_h2h_matches(
+    api_key: str,
+    base_url: str,
+    team1_id: int,
+    team2_id: int,
+    last: int = 10,
+    skip_limit: bool = False
+) -> Tuple[Optional[List[Dict[str, Any]]], Optional[str]]:
+    """
+    İki takım arasındaki karşılaşmaları getirir (head-to-head)
+    """
+    response, error = make_api_request(
+        api_key, base_url, "fixtures/headtohead",
+        {'h2h': f"{team1_id}-{team2_id}", 'last': last},
+        skip_limit=skip_limit
+    )
+    
+    if error:
+        return None, error
+    
+    return response, None
+
+
+@st.cache_data(ttl=3600)  # 1 saat cache
+def get_team_injuries(
+    api_key: str,
+    base_url: str,
+    team_id: int,
+    season: int,
+    skip_limit: bool = False
+) -> Tuple[Optional[List[Dict[str, Any]]], Optional[str]]:
+    """
+    Takımın sakatlık/ceza bilgilerini getirir
+    """
+    response, error = make_api_request(
+        api_key, base_url, "injuries",
+        {'team': team_id, 'season': season},
+        skip_limit=skip_limit
+    )
+    
+    if error:
+        return None, error
+    
+    return response, None
+
+
+@st.cache_data(ttl=86400)  # 24 saat cache
+def get_venue_info(
+    api_key: str,
+    base_url: str,
+    venue_id: int,
+    skip_limit: bool = False
+) -> Tuple[Optional[Dict[str, Any]], Optional[str]]:
+    """
+    Stadyum bilgilerini getirir
+    """
+    response, error = make_api_request(
+        api_key, base_url, "venues",
+        {'id': venue_id},
+        skip_limit=skip_limit
+    )
+    
+    if error:
+        return None, error
+    
+    if not response or len(response) == 0:
+        return None, "Stadyum bilgisi bulunamadı."
+    
+    return response[0], None
+
+
+@st.cache_data(ttl=604800)  # 7 gün cache (static data)
+def get_league_info(
+    api_key: str,
+    base_url: str,
+    league_id: int,
+    skip_limit: bool = False
+) -> Tuple[Optional[Dict[str, Any]], Optional[str]]:
+    """
+    Lig bilgilerini getirir
+    """
+    response, error = make_api_request(
+        api_key, base_url, "leagues",
+        {'id': league_id},
+        skip_limit=skip_limit
+    )
+    
+    if error:
+        return None, error
+    
+    if not response or len(response) == 0:
+        return None, "Lig bilgisi bulunamadı."
+    
+    return response[0], None

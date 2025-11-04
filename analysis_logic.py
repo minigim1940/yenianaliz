@@ -7,6 +7,35 @@ from datetime import datetime
 import api_utils
 import elo_utils
 
+# Yeni gelişmiş sistemler
+try:
+    from advanced_form_calculator import AdvancedFormCalculator
+    ADVANCED_FORM_AVAILABLE = True
+except ImportError:
+    ADVANCED_FORM_AVAILABLE = False
+    AdvancedFormCalculator = None
+
+try:
+    from dynamic_home_advantage import DynamicHomeAdvantageCalculator
+    DYNAMIC_HOME_ADV_AVAILABLE = True
+except ImportError:
+    DYNAMIC_HOME_ADV_AVAILABLE = False
+    DynamicHomeAdvantageCalculator = None
+
+try:
+    from expected_goals_calculator import ExpectedGoalsCalculator
+    XG_CALCULATOR_AVAILABLE = True
+except ImportError:
+    XG_CALCULATOR_AVAILABLE = False
+    ExpectedGoalsCalculator = None
+
+try:
+    from advanced_metrics_manager import AdvancedMetricsManager
+    ADVANCED_METRICS_MANAGER_AVAILABLE = True
+except ImportError:
+    ADVANCED_METRICS_MANAGER_AVAILABLE = False
+    AdvancedMetricsManager = None
+
 # Machine Learning sistemi
 try:
     from ml_predictor import ml_system
@@ -193,7 +222,10 @@ def get_dynamic_league_average(api_key: str, base_url: str, league_info: Dict, d
 
 @st.cache_data(ttl=86400)
 def calculate_general_stats_v2(api_key: str, base_url: str, team_id: int, league_id: int, season: int, skip_api_limit: bool = False) -> Dict:
-    """Genel istatistikleri ve takıma özel ev sahibi avantajını hesaplar."""
+    """
+    Genel istatistikleri ve takıma özel ev sahibi avantajını hesaplar.
+    YENİ: Dynamic Home Advantage Calculator kullanılır
+    """
     stats_data, error = api_utils.get_team_statistics(api_key, base_url, team_id, league_id, season, skip_limit=skip_api_limit)
     if error or not stats_data:
         # Varsayılan değerler döndür - sistem yine de çalışabilsin
@@ -229,17 +261,67 @@ def calculate_general_stats_v2(api_key: str, base_url: str, team_id: int, league
     home_stats, home_ppg = get_stats_and_ppg(stats_data, 'home')
     away_stats, away_ppg = get_stats_and_ppg(stats_data, 'away')
 
-    team_specific_home_adv = 1.12  # Daha düşük varsayılan
-    if home_ppg > 0 and away_ppg > 0:
-        ratio = home_ppg / away_ppg
-        # Oranı daha dar bir aralığa sıkıştır
-        team_specific_home_adv = max(1.02, min(ratio, 1.22))
-    elif home_ppg > 0 and away_ppg == 0:
-        # Sadece ev verisi varsa, makul bir varsayım
-        team_specific_home_adv = 1.10
-    elif away_ppg > 0 and home_ppg == 0:
-        # Sadece deplasman verisi varsa, düşük avantaj
-        team_specific_home_adv = 1.05
+    # YENİ: Dynamic Home Advantage Calculator kullan
+    team_specific_home_adv = 1.12  # Varsayılan (fallback)
+    
+    if DYNAMIC_HOME_ADV_AVAILABLE and DynamicHomeAdvantageCalculator:
+        try:
+            # Ev ve deplasman istatistiklerini hazırla
+            home_stats_dict = None
+            away_stats_dict = None
+            
+            if home_stats:
+                home_fixtures = stats_data['fixtures']['played']['home']
+                home_stats_dict = {
+                    'wins': stats_data['fixtures']['wins']['home'],
+                    'draws': stats_data['fixtures']['draws']['home'],
+                    'losses': stats_data['fixtures']['loses']['home'],
+                    'goals_for': int(home_stats['Ort. Gol ATILAN'] * home_fixtures) if home_fixtures > 0 else 0,
+                    'goals_against': int(home_stats['Ort. Gol YENEN'] * home_fixtures) if home_fixtures > 0 else 0
+                }
+            
+            if away_stats:
+                away_fixtures = stats_data['fixtures']['played']['away']
+                away_stats_dict = {
+                    'wins': stats_data['fixtures']['wins']['away'],
+                    'draws': stats_data['fixtures']['draws']['away'],
+                    'losses': stats_data['fixtures']['loses']['away'],
+                    'goals_for': int(away_stats['Ort. Gol ATILAN'] * away_fixtures) if away_fixtures > 0 else 0,
+                    'goals_against': int(away_stats['Ort. Gol YENEN'] * away_fixtures) if away_fixtures > 0 else 0
+                }
+            
+            # Dynamic calculator kullan
+            calculator = DynamicHomeAdvantageCalculator()
+            result = calculator.calculate_home_advantage(
+                team_id=team_id,
+                team_name="",  # İsim şimdilik gerekli değil
+                league_id=league_id,
+                home_stats=home_stats_dict,
+                away_stats=away_stats_dict
+            )
+            
+            team_specific_home_adv = result['home_advantage']
+            print(f"✅ Dynamic Home Advantage: {team_specific_home_adv} (Confidence: {result['confidence']:.2f})")
+            
+        except Exception as e:
+            print(f"⚠️ Dynamic Home Advantage Calculator hatası: {e}, fallback kullanılıyor")
+            # FALLBACK: Eski basit hesaplama
+            if home_ppg > 0 and away_ppg > 0:
+                ratio = home_ppg / away_ppg
+                team_specific_home_adv = max(1.02, min(ratio, 1.22))
+            elif home_ppg > 0 and away_ppg == 0:
+                team_specific_home_adv = 1.10
+            elif away_ppg > 0 and home_ppg == 0:
+                team_specific_home_adv = 1.05
+    else:
+        # FALLBACK: Eski basit hesaplama (yeni sistem yoksa)
+        if home_ppg > 0 and away_ppg > 0:
+            ratio = home_ppg / away_ppg
+            team_specific_home_adv = max(1.02, min(ratio, 1.22))
+        elif home_ppg > 0 and away_ppg == 0:
+            team_specific_home_adv = 1.10
+        elif away_ppg > 0 and home_ppg == 0:
+            team_specific_home_adv = 1.05
 
     return {
         'home': home_stats if home_stats else {'Ort. Gol ATILAN': 1.2, 'Ort. Gol YENEN': 1.2, 'Istikrar_Puani': 50.0},
@@ -322,10 +404,28 @@ def calculate_weighted_stats(matches: List[Dict]) -> Dict:
     }
 
 def calculate_form_factor(matches: Optional[List[Dict]], preferred_location: Optional[str] = None) -> float:
-    """Son maç sonuçlarına göre form katsayısını hesaplar."""
+    """
+    Son maç sonuçlarına göre form katsayısını hesaplar.
+    YENİ: Advanced Form Calculator kullanılır (eğer mevcut ise)
+    """
     if not matches:
         return 1.0
-
+    
+    # Yeni gelişmiş sistem varsa onu kullan
+    if ADVANCED_FORM_AVAILABLE and AdvancedFormCalculator:
+        try:
+            calculator = AdvancedFormCalculator()
+            result = calculator.calculate_advanced_form(
+                matches=matches,
+                location_filter=preferred_location,
+                num_matches=10
+            )
+            return result['form_factor']
+        except Exception as e:
+            print(f"⚠️ Advanced Form Calculator hatası: {e}, fallback kullanılıyor")
+            # Hata durumunda eski sisteme geri dön
+    
+    # FALLBACK: Eski basit sistem
     filtered = [m for m in matches if preferred_location is None or m.get('location') == preferred_location]
     if not filtered:
         filtered = matches

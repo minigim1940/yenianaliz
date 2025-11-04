@@ -1,19 +1,38 @@
 """
 CACHE YÖNETİM SİSTEMİ
 SQLite tabanlı hızlı cache - API çağrılarını azaltır
+
+🆕 PHASE 3.2 - Dynamic TTL System:
+- Live matches: 30 seconds
+- Upcoming matches (within 24h): 1 hour
+- Future matches: 24 hours
+- Past matches: 7 days
+- Static data (leagues, teams): 30 days
 """
 import sqlite3
 import json
 import time
 from datetime import datetime, timedelta
-from typing import Optional, Any, Dict
+from typing import Optional, Any, Dict, Union
 import hashlib
 import os
 
 class CacheManager:
     """
     Akıllı cache sistemi - API yanıtlarını önbelleğe alır
+    
+    🆕 Dynamic TTL Strategy:
+    - Maç durumuna göre otomatik TTL ayarlaması
+    - Live: 30s, Upcoming: 1h, Future: 24h, Past: 7d
     """
+    
+    # TTL Constants (seconds)
+    TTL_LIVE_MATCH = 30              # 30 seconds - Canlı maçlar için
+    TTL_UPCOMING_SOON = 3600         # 1 hour - 24 saat içinde başlayacak maçlar
+    TTL_FUTURE_MATCH = 86400         # 24 hours - Gelecek maçlar
+    TTL_PAST_MATCH = 604800          # 7 days - Geçmiş maçlar
+    TTL_STATIC_DATA = 2592000        # 30 days - Lig/takım bilgileri
+    TTL_DEFAULT = 1800               # 30 minutes - Varsayılan
     
     def __init__(self, db_path: str = "api_cache.db"):
         """Cache veritabanını başlat"""
@@ -147,6 +166,131 @@ class CacheManager:
         conn.close()
         
         print(f"💾 Cache SAVE [{category}] - TTL: {ttl_seconds}s")
+    
+    def calculate_dynamic_ttl(
+        self, 
+        category: str,
+        fixture_status: Optional[str] = None,
+        fixture_date: Optional[Union[str, datetime]] = None,
+        **kwargs
+    ) -> int:
+        """
+        🆕 Dinamik TTL hesaplama - maç durumuna göre
+        
+        Args:
+            category: Veri kategorisi
+            fixture_status: Maç durumu ('1H', '2H', 'HT', 'FT', 'NS', etc.)
+            fixture_date: Maç tarihi (ISO string veya datetime)
+            **kwargs: Ek parametreler
+        
+        Returns:
+            TTL (seconds)
+        
+        Examples:
+            >>> cache.calculate_dynamic_ttl('fixture', fixture_status='1H')
+            30  # Live match
+            
+            >>> cache.calculate_dynamic_ttl('fixture', fixture_status='NS', fixture_date='2024-12-01T15:00:00Z')
+            3600  # Upcoming soon (within 24h)
+            
+            >>> cache.calculate_dynamic_ttl('fixture', fixture_status='FT')
+            604800  # Past match (7 days)
+        """
+        
+        # 1. Live Match Detection
+        if fixture_status in ['1H', '2H', 'ET', 'P', 'LIVE', 'HT']:
+            return self.TTL_LIVE_MATCH
+        
+        # 2. Past Match (Finished)
+        if fixture_status in ['FT', 'AET', 'PEN', 'CANC', 'SUSP', 'ABD', 'AWD', 'WO']:
+            return self.TTL_PAST_MATCH
+        
+        # 3. Future Match - Check timing
+        if fixture_status in ['NS', 'TBD', 'PST'] and fixture_date:
+            try:
+                # Convert to datetime if string
+                if isinstance(fixture_date, str):
+                    # Handle ISO format
+                    if 'Z' in fixture_date:
+                        fixture_date = fixture_date.replace('Z', '+00:00')
+                    match_time = datetime.fromisoformat(fixture_date)
+                else:
+                    match_time = fixture_date
+                
+                # Remove timezone for comparison
+                if match_time.tzinfo:
+                    match_time = match_time.replace(tzinfo=None)
+                
+                now = datetime.now()
+                time_until_match = (match_time - now).total_seconds()
+                
+                # Upcoming soon (within 24 hours)
+                if 0 <= time_until_match <= 86400:
+                    return self.TTL_UPCOMING_SOON
+                
+                # Future match (more than 24h away)
+                elif time_until_match > 86400:
+                    return self.TTL_FUTURE_MATCH
+                
+                # Already started but status not updated
+                else:
+                    return self.TTL_LIVE_MATCH
+                    
+            except Exception as e:
+                print(f"⚠️ Date parsing error: {e}, using default TTL")
+                return self.TTL_DEFAULT
+        
+        # 4. Static Data (leagues, teams, standings)
+        if category in ['league', 'team', 'team_info', 'standings', 'coaches']:
+            return self.TTL_STATIC_DATA
+        
+        # 5. Semi-static data (injuries, transfers)
+        if category in ['injuries', 'transfers', 'sidelined']:
+            return self.TTL_FUTURE_MATCH  # 24 hours
+        
+        # 6. Default
+        return self.TTL_DEFAULT
+    
+    def set_smart(
+        self, 
+        category: str, 
+        data: Any, 
+        fixture_status: Optional[str] = None,
+        fixture_date: Optional[Union[str, datetime]] = None,
+        **kwargs
+    ):
+        """
+        🆕 Akıllı cache kaydetme - otomatik TTL hesaplama
+        
+        Args:
+            category: Veri kategorisi
+            data: Kaydedilecek veri
+            fixture_status: Maç durumu (optional)
+            fixture_date: Maç tarihi (optional)
+            **kwargs: Anahtar parametreleri
+        
+        Example:
+            >>> cache.set_smart('fixture', fixture_data, 
+            ...                 fixture_status='1H', 
+            ...                 fixture_date='2024-12-01T15:00:00Z',
+            ...                 fixture_id=12345)
+        """
+        ttl = self.calculate_dynamic_ttl(
+            category=category,
+            fixture_status=fixture_status,
+            fixture_date=fixture_date,
+            **kwargs
+        )
+        
+        self.set(category, data, ttl_seconds=ttl, **kwargs)
+        
+        # Log TTL reason
+        if fixture_status in ['1H', '2H', 'ET', 'P', 'LIVE', 'HT']:
+            print(f"   🔴 LIVE MATCH - TTL: {ttl}s (30s)")
+        elif fixture_status in ['FT', 'AET', 'PEN']:
+            print(f"   ✅ FINISHED - TTL: {ttl}s (7 days)")
+        elif fixture_date:
+            print(f"   📅 UPCOMING - TTL: {ttl}s")
     
     def _update_stats(self, stat_type: str, conn=None):
         """İstatistikleri güncelle"""

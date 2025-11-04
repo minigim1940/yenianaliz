@@ -8,6 +8,15 @@ from datetime import datetime, date, timedelta
 from typing import Dict, Any, Optional, List
 import json
 
+# ML Prediction modules
+try:
+    from enhanced_ml_predictor import EnhancedMLPredictor
+    from ensemble_manager import EnsembleManager
+    ML_AVAILABLE = True
+except ImportError as e:
+    ML_AVAILABLE = False
+    print(f"[WARNING] ML modules not available: {e}")
+
 # Yardımcı fonksiyon: API fixture verisini güvenli şekilde format et
 def format_fixture_for_display(fixture: Dict[str, Any]) -> Dict[str, str]:
     """API fixture verisini kullanıcı arayüzü için formatlar"""
@@ -98,6 +107,19 @@ try:
     from advanced_analysis_display import display_advanced_analysis_tab, display_xg_analysis, display_momentum_analysis
     from ai_chat_assistant import FootballChatAssistant, create_chat_widget
     from advanced_pages import display_xg_analysis_page, display_ai_chat_page
+except ImportError:
+    pass
+
+# 🆕 Advanced Metrics Display (Phase 2 - World-class metrics)
+try:
+    from advanced_metrics_display import (
+        display_advanced_metrics_dashboard,
+        show_advanced_metrics_if_available,
+        display_new_analyzers_dashboard  # 🆕 PHASE 3.4
+    )
+    ADVANCED_METRICS_DISPLAY_AVAILABLE = True
+except ImportError:
+    ADVANCED_METRICS_DISPLAY_AVAILABLE = False
     from lstm_page import display_lstm_page
     from simulation_page import display_simulation_page
     from betting_page import render_betting_page
@@ -411,6 +433,98 @@ def _fallback_season_year() -> int:
     today = date.today()
     return today.year if today.month >= 7 else today.year - 1
 
+# ============================================================================
+# ML PREDICTION FUNCTIONS
+# ============================================================================
+
+@st.cache_resource
+def load_ml_predictor():
+    """Load ML predictor with trained models"""
+    if not ML_AVAILABLE:
+        return None
+    
+    try:
+        predictor = EnhancedMLPredictor()
+        
+        # Try to load pre-trained models
+        import os
+        model_dir = predictor.model_dir
+        
+        # Look for latest model files
+        if os.path.exists(model_dir):
+            try:
+                model_files = [f for f in os.listdir(model_dir) if f.endswith('_xgboost.pkl')]
+                if model_files:
+                    # Get latest model (by timestamp in filename)
+                    latest = sorted(model_files)[-1]
+                    prefix = latest.replace('_xgboost.pkl', '')
+                    
+                    # Try to load models
+                    try:
+                        predictor.load_models(prefix)
+                        print(f"✅ ML models loaded: {prefix}")
+                        return predictor
+                    except FileNotFoundError as e:
+                        print(f"⚠️ Model files not found: {e}")
+                        return predictor
+                    except Exception as e:
+                        print(f"⚠️ Error loading models: {e}")
+                        return predictor
+            except PermissionError:
+                print(f"⚠️ Permission denied accessing model directory: {model_dir}")
+                return predictor
+        else:
+            print(f"⚠️ Model directory not found: {model_dir}")
+            os.makedirs(model_dir, exist_ok=True)
+        
+        # No trained models found
+        print("ℹ️ No trained ML models found. Will need to train first.")
+        return predictor
+        
+    except Exception as e:
+        print(f"❌ Failed to load ML predictor: {e}")
+        import traceback
+        traceback.print_exc()
+        return None
+
+
+def get_ml_prediction(
+    predictor,
+    home_data: Dict[str, Any],
+    away_data: Dict[str, Any],
+    league_id: int,
+    h2h_data: Optional[Dict[str, Any]] = None
+) -> Optional[Dict[str, Any]]:
+    """
+    Get ML prediction for a match
+    
+    Returns:
+        {
+            'prediction': 2,
+            'prediction_label': 'Home Win',
+            'probabilities': {'home_win': 0.72, 'draw': 0.18, 'away_win': 0.10},
+            'confidence': 0.72,
+            'model_votes': {...},
+            'feature_count': 86
+        }
+    """
+    if predictor is None:
+        return None
+    
+    try:
+        result = predictor.predict_match(
+            home_data=home_data,
+            away_data=away_data,
+            league_id=league_id,
+            h2h_data=h2h_data
+        )
+        return result
+    except Exception as e:
+        print(f"[ERROR] ML prediction failed: {e}")
+        return None
+
+# ============================================================================
+
 @st.cache_data(ttl=86400)
 def load_league_catalog(api_key: str, base_url: str):
     leagues, error = api_utils.get_all_current_leagues(api_key, base_url)
@@ -589,10 +703,15 @@ def display_best_bet_card(title: str, match_data: pd.Series, prediction_label: s
         st.metric(metric_label, metric_value)
 
         
-def display_summary_tab(analysis: Dict, team_names: Dict, odds_data: Optional[Dict], model_params: Dict, team_logos: Optional[Dict] = None):
+def display_summary_tab(analysis: Dict, team_names: Dict, odds_data: Optional[Dict], model_params: Dict, team_logos: Optional[Dict] = None, home_data: Optional[Dict] = None, away_data: Optional[Dict] = None, league_id: Optional[int] = None):
     name_a, name_b = team_names['a'], team_names['b']
     logo_a = team_logos.get('a', '') if team_logos else ''
     logo_b = team_logos.get('b', '') if team_logos else ''
+    
+    # ML Prediction Section (at the top)
+    if home_data and away_data and league_id and ML_AVAILABLE:
+        display_ml_prediction_section(home_data, away_data, league_id, name_a, name_b)
+        st.markdown("---")
     
     score_a, score_b, probs, confidence, diff = analysis['score_a'], analysis['score_b'], analysis['probs'], analysis['confidence'], analysis['diff']
     max_prob_key = max(probs, key=lambda k: probs[k] if 'win' in k or 'draw' in k else -1)
@@ -1086,16 +1205,37 @@ def display_injuries_tab(fixture_id: int, team_names: Dict, team_ids: Dict, leag
 def display_standings_tab(league_info: Dict, team_names: Dict):
     st.subheader("🏆 Lig Puan Durumu")
     standings_data, error = api_utils.get_league_standings(API_KEY, BASE_URL, league_info['league_id'], league_info['season'])
-    if error: st.warning(f"Puan durumu çekilemedi: {error}")
-    elif standings_data:
-        df = pd.DataFrame(standings_data)[['rank', 'team', 'points', 'goalsDiff', 'form']].rename(columns={'rank':'Sıra', 'team':'Takım', 'points':'Puan', 'goalsDiff':'Averaj', 'form':'Form'})
-        df['Takım'] = df['Takım'].apply(lambda x: x['name'])
-        def highlight(row):
-            if row.Takım == team_names['a']: return ['background-color: lightblue'] * len(row)
-            if row.Takım == team_names['b']: return ['background-color: lightcoral'] * len(row)
-            return [''] * len(row)
-        st.dataframe(df.style.apply(highlight, axis=1), hide_index=True, use_container_width=True)
-    else: st.warning("Bu lig için puan durumu verisi bulunamadı.")
+    if error: 
+        st.warning(f"Puan durumu çekilemedi: {error}")
+    elif standings_data and len(standings_data) > 0:
+        try:
+            # DataFrame oluştur ve gerekli kolonları kontrol et
+            df = pd.DataFrame(standings_data)
+            required_cols = ['rank', 'team', 'points', 'goalsDiff', 'form']
+            
+            # Eksik kolonları kontrol et
+            missing_cols = [col for col in required_cols if col not in df.columns]
+            if missing_cols:
+                st.warning(f"Puan durumu verilerinde eksik kolonlar: {', '.join(missing_cols)}")
+                return
+            
+            # Kolonları seç ve yeniden adlandır
+            df = df[required_cols].rename(columns={'rank':'Sıra', 'team':'Takım', 'points':'Puan', 'goalsDiff':'Averaj', 'form':'Form'})
+            
+            # Takım isimlerini düzelt
+            if isinstance(df['Takım'].iloc[0], dict):
+                df['Takım'] = df['Takım'].apply(lambda x: x.get('name', 'N/A') if isinstance(x, dict) else str(x))
+            
+            def highlight(row):
+                if row.Takım == team_names['a']: return ['background-color: lightblue'] * len(row)
+                if row.Takım == team_names['b']: return ['background-color: lightcoral'] * len(row)
+                return [''] * len(row)
+            
+            st.dataframe(df.style.apply(highlight, axis=1), hide_index=True, use_container_width=True)
+        except Exception as e:
+            st.error(f"Puan durumu gösterilirken hata: {str(e)}")
+    else: 
+        st.warning("Bu lig için puan durumu verisi bulunamadı.")
 
 def display_referee_tab(referee_stats: Optional[Dict]):
     st.subheader("⚖️ Hakem İstatistikleri")
@@ -2113,6 +2253,131 @@ def display_h2h_tab(h2h_stats: Optional[Dict], team_names: Dict, team_ids: Dict)
             c4.metric("Beraberlik", summary['draws'])
         else:
             st.warning("İki takım arasında geçmişe dönük karşılaşma verisi bulunamadı.")
+
+def display_ml_prediction_section(
+    home_data: Dict,
+    away_data: Dict,
+    league_id: int,
+    team1_name: str,
+    team2_name: str
+):
+    """Display ML prediction with confidence and model votes"""
+    
+    # Check if ML predictor is available
+    ml_predictor = st.session_state.get('ml_predictor')
+    if ml_predictor is None:
+        return
+    
+    st.markdown("---")
+    st.markdown("### 🤖 Makine Öğrenimi Tahmini")
+    st.caption("5 ML modeli (XGBoost, RandomForest, Neural Network, Logistic, Poisson) ile ensemble tahmin")
+    
+    try:
+        # Get prediction
+        prediction = get_ml_prediction(
+            ml_predictor,
+            home_data=home_data,
+            away_data=away_data,
+            league_id=league_id,
+            h2h_data=None
+        )
+        
+        if prediction is None:
+            st.warning("⚠️ ML tahmini oluşturulamadı. Model henüz eğitilmemiş olabilir.")
+            return
+        
+        # Display prediction
+        col1, col2, col3, col4 = st.columns([2, 1, 1, 2])
+        
+        with col1:
+            # Main prediction
+            pred_label = prediction['prediction_label']
+            confidence = prediction['confidence']
+            
+            # Color based on confidence
+            if confidence >= 0.70:
+                emoji = "🟢"
+                conf_color = "green"
+            elif confidence >= 0.60:
+                emoji = "🟡"
+                conf_color = "orange"
+            else:
+                emoji = "🔴"
+                conf_color = "red"
+            
+            st.markdown(f"#### {emoji} Tahmin: **{pred_label}**")
+            st.metric("Güven Skoru", f"{confidence:.1%}", help="Modelin tahmine olan güveni")
+        
+        with col2:
+            # Home Win probability
+            home_prob = prediction['probabilities']['home_win']
+            st.metric(
+                f"🏠 {team1_name[:15]}",
+                f"{home_prob:.1%}",
+                help="Ev sahibi galibiyeti olasılığı"
+            )
+        
+        with col3:
+            # Draw probability
+            draw_prob = prediction['probabilities']['draw']
+            st.metric(
+                "🤝 Beraberlik",
+                f"{draw_prob:.1%}",
+                help="Beraberlik olasılığı"
+            )
+        
+        with col4:
+            # Away Win probability
+            away_prob = prediction['probabilities']['away_win']
+            st.metric(
+                f"✈️ {team2_name[:15]}",
+                f"{away_prob:.1%}",
+                help="Deplasman galibiyeti olasılığı"
+            )
+        
+        # Model votes breakdown
+        with st.expander("📊 Model Oyları Detayı"):
+            votes = prediction['model_votes']
+            
+            vote_cols = st.columns(5)
+            for idx, (model, vote) in enumerate(votes.items()):
+                with vote_cols[idx]:
+                    # Icon based on vote
+                    if vote == 'Home Win':
+                        icon = "🏠"
+                    elif vote == 'Away Win':
+                        icon = "✈️"
+                    else:
+                        icon = "🤝"
+                    
+                    st.markdown(f"**{model.replace('_', ' ').title()}**")
+                    st.markdown(f"{icon} {vote}")
+            
+            st.caption(f"Toplam {prediction.get('feature_count', 86)} özellik kullanıldı")
+        
+        # Betting recommendation (if available)
+        if ML_AVAILABLE:
+            from ensemble_manager import EnsembleManager
+            manager = EnsembleManager()
+            
+            proba_array = [
+                prediction['probabilities']['away_win'],
+                prediction['probabilities']['draw'],
+                prediction['probabilities']['home_win']
+            ]
+            
+            recommendation = manager.get_recommendation(proba_array)
+            
+            if recommendation['bet']:
+                st.success(f"✅ Bahis Önerisi: {recommendation['outcome']} - {recommendation['suggested_stake']} Yatırım")
+                st.caption(f"💡 {recommendation['reasoning']}")
+            else:
+                st.info(f"ℹ️ {recommendation['reasoning']}")
+    
+    except Exception as e:
+        st.error(f"ML tahmin hatası: {str(e)}")
+        import traceback
+        st.code(traceback.format_exc())
         
 def display_parameters_tab(params: Dict, team_names: Dict):
     st.subheader("⚙️ Modelin Kullandığı Parametreler")
@@ -3993,6 +4258,31 @@ def analyze_and_display(team_a_data: Dict, team_b_data: Dict, fixture_id: int, m
 
     team_names = {'a': name_a, 'b': name_b}; team_ids = {'a': id_a, 'b': id_b}
     
+    # Prepare data for ML prediction
+    ml_home_data = {
+        'match_stats': {'statistics': []},
+        'goals_scored_avg': analysis.get('score_a', 0),
+        'goals_conceded_avg': analysis['stats']['a'].get('home', {}).get('Ort. Gol YENEN', 0),
+        'recent_results': [],  # Will be filled from form
+        'top_scorer_goals': 0,
+        'top_assists': 0,
+        'clean_sheet_pct': 0,
+        'recent_xg': []
+    }
+    
+    ml_away_data = {
+        'match_stats': {'statistics': []},
+        'goals_scored_avg': analysis.get('score_b', 0),
+        'goals_conceded_avg': analysis['stats']['b'].get('away', {}).get('Ort. Gol YENEN', 0),
+        'recent_results': [],
+        'top_scorer_goals': 0,
+        'top_assists': 0,
+        'clean_sheet_pct': 0,
+        'recent_xg': []
+    }
+    
+    ml_league_id = league_info.get('league_id', league_info.get('id', 203))
+    
     # Modern Tab Tasarımı
     st.markdown("""
     <style>
@@ -4017,12 +4307,12 @@ def analyze_and_display(team_a_data: Dict, team_b_data: Dict, fixture_id: int, m
     </style>
     """, unsafe_allow_html=True)
     
-    tab_list = ["🎯 Tahmin Özeti", "📈 İstatistikler", "🎲 Detaylı İddaa", "🚑 Eksikler", "📊 Puan Durumu", "⚔️ H2H Analizi", "⚖️ Hakem Analizi", "👨‍💼 Antrenörler", "⚙️ Detaylı Maç Analizi"]
-    tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9 = st.tabs(tab_list)
+    tab_list = ["🎯 Tahmin Özeti", "📈 İstatistikler", "🎲 Detaylı İddaa", "🚑 Eksikler", "📊 Puan Durumu", "⚔️ H2H Analizi", "⚖️ Hakem Analizi", "👨‍💼 Antrenörler", "⚙️ Detaylı Maç Analizi", "🔬 Advanced Metrics", "📊 Detaylı Analiz"]
+    tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9, tab10, tab11 = st.tabs(tab_list)
 
     team_logos = {'a': logo_a, 'b': logo_b}
     
-    with tab1: display_summary_tab(analysis, team_names, processed_odds, model_params, team_logos)
+    with tab1: display_summary_tab(analysis, team_names, processed_odds, model_params, team_logos, ml_home_data, ml_away_data, ml_league_id)
     with tab2: display_stats_tab(analysis['stats'], team_names, team_ids, analysis.get('params'))
     with tab3: display_detailed_betting_tab(analysis, team_names, fixture_id, model_params)
     with tab4: display_injuries_tab(fixture_id, team_names, team_ids, league_info)
@@ -4031,6 +4321,59 @@ def analyze_and_display(team_a_data: Dict, team_b_data: Dict, fixture_id: int, m
     with tab7: display_referee_tab(processed_referee_stats)
     with tab8: display_coaches_tab(team_ids, team_names)
     with tab9: display_parameters_tab(analysis['params'], team_names)
+    with tab10: 
+        # 🆕 Advanced Metrics Tab (Phase 2 - World-class analytics)
+        if ADVANCED_METRICS_DISPLAY_AVAILABLE:
+            try:
+                # league_info objesinde 'league_id' key kullanılıyor
+                league_id_val = league_info.get('league_id', league_info.get('id', 0))
+                season_val = league_info.get('season', 2024)
+                
+                show_advanced_metrics_if_available(
+                    api_key=API_KEY,
+                    base_url=BASE_URL,
+                    home_team_id=team_ids['a'],
+                    away_team_id=team_ids['b'],
+                    home_team_name=team_names['a'],
+                    away_team_name=team_names['b'],
+                    league_id=league_id_val,
+                    season=season_val
+                )
+            except Exception as e:
+                st.error(f"❌ Advanced metrics gösterilirken hata: {e}")
+                import traceback
+                with st.expander("🔍 Hata Detayı"):
+                    st.code(traceback.format_exc())
+        else:
+            st.warning("⚠️ Advanced Metrics modülü yüklü değil")
+            st.info("📦 Yeni gelişmiş metrikler için sistem güncelleniyor...")
+    
+    with tab11:
+        # 🆕 PHASE 3.4 - Detailed Analysis Tab (Shot, Passing, Defensive)
+        if ADVANCED_METRICS_DISPLAY_AVAILABLE:
+            try:
+                league_id_val = league_info.get('league_id', league_info.get('id', 0))
+                season_val = league_info.get('season', 2024)
+                
+                display_new_analyzers_dashboard(
+                    api_key=API_KEY,
+                    base_url=BASE_URL,
+                    home_team_id=team_ids['a'],
+                    away_team_id=team_ids['b'],
+                    home_team_name=team_names['a'],
+                    away_team_name=team_names['b'],
+                    fixture_id=fixture_id,
+                    league_id=league_id_val,
+                    season=season_val
+                )
+            except Exception as e:
+                st.error(f"❌ Detaylı analiz gösterilirken hata: {e}")
+                import traceback
+                with st.expander("🔍 Hata Detayı"):
+                    st.code(traceback.format_exc())
+        else:
+            st.warning("⚠️ Detaylı Analiz modülü yüklü değil")
+            st.info("📦 Shot Analysis, Passing Network ve Defensive Stats için sistem güncelleniyor...")
 
 @st.cache_data(ttl=3600, show_spinner=False)  # 1 saat cache - sık güncelleme
 def get_top_predictions_today(model_params: Dict, today_date: date, is_admin_user: bool, top_n: int = 5) -> List[Dict]:
@@ -5705,6 +6048,11 @@ def display_odds_management():
         st.code(traceback.format_exc())
 
 def main():
+    # Load ML predictor (cached)
+    ml_predictor = load_ml_predictor() if ML_AVAILABLE else None
+    if ml_predictor:
+        st.session_state['ml_predictor'] = ml_predictor
+    
     # DEVELOPMENT MODE CHECK - Localhost için bypass
     import socket
     hostname = socket.gethostname()
