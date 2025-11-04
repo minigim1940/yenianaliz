@@ -15,11 +15,15 @@ jobs:
   update-elo:
     runs-on: ubuntu-latest
     
+    permissions:
+      contents: write  # Push yetkisi için gerekli
+    
     steps:
     - name: Checkout repository
       uses: actions/checkout@v3
       with:
         token: ${{ secrets.GITHUB_TOKEN }}
+        fetch-depth: 0  # Tüm geçmişi al (rebase için)
     
     - name: Set up Python
       uses: actions/setup-python@v4
@@ -47,7 +51,22 @@ jobs:
         git config --local user.email "github-actions[bot]@users.noreply.github.com"
         git config --local user.name "github-actions[bot]"
         git add elo_ratings.json
-        git diff --staged --quiet || git commit -m "🤖 Otomatik Elo güncelleme: $(date +'%Y-%m-%d')"
-        # Önce pull et (conflict önleme)
-        git pull --rebase origin main || true
-        git push
+        
+        # Değişiklik varsa commit et
+        if git diff --staged --quiet; then
+          echo "No changes to commit"
+        else
+          git commit -m "🤖 Otomatik Elo güncelleme: $(date +'%Y-%m-%d %H:%M:%S')"
+          
+          # Push et (retry mekanizması ile)
+          for i in 1 2 3; do
+            if git push; then
+              echo "Push successful"
+              break
+            else
+              echo "Push failed, attempt $i/3"
+              sleep 2
+              git pull --rebase origin main
+            fi
+          done
+        fi
